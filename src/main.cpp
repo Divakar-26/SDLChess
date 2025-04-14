@@ -1,0 +1,19 @@
+#include"game.h"
+#include<iostream>
+Game game(512,512);
+
+int main(int argc, char* argv[]){
+
+    if(!game.init("myWIndow", argv[1],argc)){
+        return -1;
+    }
+
+    while(game.running()){
+        game.handleEvent();
+        game.update();
+        game.render();
+
+    }
+
+    return 0;
+}
