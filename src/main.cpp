@@ -1,6 +1,6 @@
 #include"game.h"
 #include<iostream>
-Game game(512,512);
+Game game(640 + 350,640);
 
 int main(int argc, char* argv[]){
 

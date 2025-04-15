@@ -6,6 +6,13 @@
 #include<iostream>
 #include<unordered_map>
 #include<string>
+#include <filesystem>
+#include<vector>
+#include "imgui.h"
+#include "backends/imgui_impl_sdl3.h"
+#include "backends/imgui_impl_sdlrenderer3.h"
+
+namespace fs = std::filesystem;
 
 class Game{
     public:
@@ -33,6 +40,9 @@ class Game{
     int WINDOW_W, WINDOW_H;
     std::string fen = "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1";
     bool isRunning;
+
+    std::unordered_map<std::string, SDL_Texture*> textures;
+    int current_item = 0;
 
 };
 
