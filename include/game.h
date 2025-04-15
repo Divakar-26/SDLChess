@@ -12,6 +12,9 @@
 #include "backends/imgui_impl_sdl3.h"
 #include "backends/imgui_impl_sdlrenderer3.h"
 
+#include"chessboard.h"
+#include"piece.h"
+
 namespace fs = std::filesystem;
 
 class Game{
@@ -43,6 +46,9 @@ class Game{
 
     std::unordered_map<std::string, SDL_Texture*> textures;
     int current_item = 0;
+
+    Chessboard board;
+    Pieces piece;
 
 };
 

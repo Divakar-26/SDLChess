@@ -2,64 +2,16 @@
 
 #define CELL_SIZE 80
 
-struct Piece
-{
-    float texX, texY;
-    std::string name;
-    int worth;
-};
-
-Piece q = {0, 0, "Black Queen"};
-Piece k = {200, 0, "Black King"};
-Piece r = {400, 0, "Black Rook"};
-Piece n = {600, 0, "Black Knight"};
-Piece b = {800, 0, "Black Bishop"};
-Piece p = {1000, 0, "Black Pawn"};
-
-Piece Q = {0, 200, "White Queen"};
-Piece K = {200, 200, "White King"};
-Piece R = {400, 200, "White Rook"};
-Piece N = {600, 200, "White Knight"};
-Piece B = {800, 200, "White Bishop"};
-Piece P = {1000, 200, "White Pawn"};
-
 std::vector<std::string> items;
-
-std::unordered_map<char, Piece> pieces = {
-    {'q', q},
-    {'k', k},
-    {'r', r},
-    {'n', n},
-    {'b', b},
-    {'p', p},
-
-    {'Q', Q},
-    {'K', K},
-    {'R', R},
-    {'N', N},
-    {'B', B},
-    {'P', P}};
 
 SDL_Texture *pieceTexture;
 SDL_Texture *boardTexture;
 int mX, mY;
-void renderBoard(SDL_Renderer *renderer);
+
 void mousePrinting(SDL_Event e, SDL_Renderer *renderer);
 bool isMouseMoved = false;
-void renderPieces(SDL_Renderer *renderer);
-void renderPiece(SDL_Renderer *renderer, char piece, int x, int y);
-void setFEN(std::string fen);
 
-char board[8][8] = {
-    {'.', '.', '.', '.', '.', '.', '.', '.'},
-    {'.', '.', '.', '.', '.', '.', '.', '.'},
-    {'.', '.', '.', '.', '.', '.', '.', '.'},
-    {'.', '.', '.', '.', '.', '.', '.', '.'},
-    {'.', '.', '.', '.', '.', '.', '.', '.'},
-    {'.', '.', '.', '.', '.', '.', '.', '.'},
-    {'.', '.', '.', '.', '.', '.', '.', '.'},
-    {'.', '.', '.', '.', '.', '.', '.', '.'},
-};
+
 
 Game::Game(int W_W, int W_H)
 {
@@ -105,7 +57,8 @@ bool Game::init(const char *title, char *fenInput, int args)
         this->fen = fenInput;
 
     // FEN Parsing  
-    setFEN(fen);
+    board.setFEN(fen);
+
 
     std::string folder_path = "assets"; // Replace with your folder path
     std::vector<std::string> filenames;
@@ -122,6 +75,9 @@ bool Game::init(const char *title, char *fenInput, int args)
         for (const auto &name : filenames)
         {
             std::string textureFileName = name.substr(0, name.find_last_of('.'));
+            // if(textureFileName == "board"){
+            //     continue;
+            // }
             items.push_back(textureFileName);
             SDL_Texture *tex = loadTexture(("assets/" + name).c_str());
             if (tex)
@@ -138,6 +94,7 @@ bool Game::init(const char *title, char *fenInput, int args)
     {
     }
 
+
     pieceTexture = textures["cburnett"];
     boardTexture = textures["board"];
 
@@ -153,7 +110,6 @@ bool Game::init(const char *title, char *fenInput, int args)
 
 void Game::handleEvent()
 {
-
     SDL_Event e;
     while (SDL_PollEvent(&e))
     {
@@ -166,18 +122,6 @@ void Game::handleEvent()
         {
             mousePrinting(e, renderer);
             isMouseMoved = true;
-        }
-        else if (e.type == SDL_EVENT_KEY_DOWN)
-        {
-            switch (e.key.key)
-            {
-            case SDLK_E:
-                pieceTexture = textures["rhosgfx"];
-                break;
-
-            default:
-                break;
-            }
         }
     }
 }
@@ -215,7 +159,7 @@ void Game::update()
     if (buffer[0] != '\0')
     {
         fen = buffer;
-        setFEN(fen);
+        board.setFEN(fen);
     }
 
     if (current_item >= 0 && current_item < items.size())
@@ -232,27 +176,23 @@ void Game::render()
 
     // all rendering is here
 
-    renderBoard(renderer);
+    board.renderBoard(renderer, boardTexture);
+
     if (isMouseMoved)
     {
         SDL_FRect grid = {(float)(mX * CELL_SIZE), (float)(mY * CELL_SIZE), CELL_SIZE, CELL_SIZE};
         SDL_SetRenderDrawColor(renderer, 255, 0, 0, 0);
         SDL_RenderFillRect(renderer, &grid);
     }
+    
+    piece.renderPieces(renderer, board, pieceTexture, CELL_SIZE);
 
-    renderPieces(renderer);
+
     ImGui_ImplSDLRenderer3_RenderDrawData(ImGui::GetDrawData(), renderer);
-
     SDL_RenderPresent(renderer);
 }
 
-void renderBoard(SDL_Renderer *renderer)
-{
-    SDL_FRect srcRect = {0, 0, 512, 512};
-    SDL_FRect destRect = {0, 0, 640, 640};
 
-    SDL_RenderTexture(renderer, boardTexture, &srcRect, &destRect);
-}
 void mousePrinting(SDL_Event e, SDL_Renderer *renderer)
 {
     float mouseX, mouseY;
@@ -262,28 +202,7 @@ void mousePrinting(SDL_Event e, SDL_Renderer *renderer)
     mY = (int)(mouseY / CELL_SIZE);
 }
 
-void renderPieces(SDL_Renderer *renderer)
-{
-    for (int i = 0; i < 8; i++)
-    {
-        for (int j = 0; j < 8; j++)
-        {
-            if (board[i][j] == '.')
-            {
-                continue;
-            }
-            renderPiece(renderer, board[i][j], i, j);
-        }
-    }
-}
 
-void renderPiece(SDL_Renderer *renderer, char piece, int x, int y)
-{
-
-    SDL_FRect srcRect = {pieces[piece].texX, pieces[piece].texY, 200, 200};
-    SDL_FRect destRect = {(float)(y * CELL_SIZE), (float)(x * CELL_SIZE), CELL_SIZE, CELL_SIZE};
-    SDL_RenderTexture(renderer, pieceTexture, &srcRect, &destRect);
-}
 
 SDL_Texture *Game::loadTexture(const char *path)
 {
@@ -293,38 +212,3 @@ SDL_Texture *Game::loadTexture(const char *path)
     return texture;
 }
 
-void setFEN(std::string fen)
-{
-    int row = 0;
-    int col = 0;
-    for (int i = 0; fen[i] != '\0'; i++)
-    {
-
-        if (fen[i] == ' ')
-        {
-            break;
-        }
-
-        if (isdigit(fen[i]))
-        {
-            int empty = fen[i] - '0';
-            for (int k = 0; k < empty; k++)
-            {
-                board[row][col] = '.';
-                col++;
-            }
-        }
-
-        else if (fen[i] == '/')
-        {
-            row++;
-            col = 0;
-        }
-
-        else
-        {
-            board[row][col] = fen[i];
-            col++;
-        }
-    }
-}
