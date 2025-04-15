@@ -2,15 +2,13 @@
 
 #define CELL_SIZE 80
 
-std::vector<std::string> items;
+std::vector<std::string> texture_of_piece;
+std::vector<std::string> texture_of_board;
 
-SDL_Texture *pieceTexture;
-SDL_Texture *boardTexture;
 int mX, mY;
 
 void mousePrinting(SDL_Event e, SDL_Renderer *renderer);
 bool isMouseMoved = false;
-
 
 
 Game::Game(int W_W, int W_H)
@@ -18,6 +16,7 @@ Game::Game(int W_W, int W_H)
     WINDOW_H = W_H;
     WINDOW_W = W_W;
 }
+
 
 Game::~Game() {}
 
@@ -60,43 +59,12 @@ bool Game::init(const char *title, char *fenInput, int args)
     board.setFEN(fen);
 
 
-    std::string folder_path = "assets"; // Replace with your folder path
-    std::vector<std::string> filenames;
-    int i = 0;
-    try
-    {
-        for (const auto &entry : fs::directory_iterator(folder_path))
-        {
-            if (entry.is_regular_file())
-            {
-                filenames.push_back(entry.path().filename().string());
-            }
-        }
-        for (const auto &name : filenames)
-        {
-            std::string textureFileName = name.substr(0, name.find_last_of('.'));
-            // if(textureFileName == "board"){
-            //     continue;
-            // }
-            items.push_back(textureFileName);
-            SDL_Texture *tex = loadTexture(("assets/" + name).c_str());
-            if (tex)
-            {
-                textures.insert({textureFileName, tex});
-            }
-            else
-            {
-                SDL_Log("Failed to load texture: %s", name.c_str());
-            }
-        }
-    }
-    catch (const fs::filesystem_error &e)
-    {
-    }
+    loadTexturesFromFolder("assets/piecesTexture", piecesTextures, texture_of_piece);
+    loadTexturesFromFolder("assets/boardTexture", boardTextures, texture_of_board);
 
 
-    pieceTexture = textures["cburnett"];
-    boardTexture = textures["board"];
+    pieceTexture = piecesTextures["cburnett"];
+    boardTexture = boardTextures["board"];
 
     if (!boardTexture || !pieceTexture)
     {
@@ -134,12 +102,12 @@ void Game::update()
 
     // UI with dropdown
     ImGui::Begin("THEMES");
-    if (ImGui::BeginCombo("Choose Theme##Combo", items[current_item].c_str()))
+    if (ImGui::BeginCombo("Choose Theme##Combo", texture_of_piece[current_item].c_str()))
     { // "##Combo" ensures a valid ID
-        for (int i = 0; i < items.size(); ++i)
+        for (int i = 0; i < texture_of_piece.size(); ++i)
         {
             bool is_selected = (current_item == i);
-            if (ImGui::Selectable(items[i].c_str(), is_selected))
+            if (ImGui::Selectable(texture_of_piece[i].c_str(), is_selected))
                 current_item = i;
             if (is_selected)
                 ImGui::SetItemDefaultFocus();
@@ -148,8 +116,8 @@ void Game::update()
     }
     ImGui::End();
 
+    
     char buffer[128] = ""; // Buffer to store the input text
-
     ImGui::Begin("Load FEN"); // Start a window
     if (ImGui::InputText("FEN", buffer, sizeof(buffer)))
     {
@@ -162,9 +130,9 @@ void Game::update()
         board.setFEN(fen);
     }
 
-    if (current_item >= 0 && current_item < items.size())
+    if (current_item >= 0 && current_item < texture_of_piece.size())
     {
-        pieceTexture = textures[items[current_item]];
+        pieceTexture = piecesTextures[texture_of_piece[current_item]];
     }
 }
 
@@ -212,3 +180,37 @@ SDL_Texture *Game::loadTexture(const char *path)
     return texture;
 }
 
+bool Game::loadTexturesFromFolder(
+    const std::string &folder_path,
+    std::unordered_map<std::string, SDL_Texture *> &targetMap,
+    std::vector<std::string> &textureNames)
+{
+    try
+    {
+        for (const auto &entry : fs::directory_iterator(folder_path))
+        {
+            if (entry.is_regular_file())
+            {
+                std::string filename = entry.path().filename().string();
+                std::string textureName = filename.substr(0, filename.find_last_of('.'));
+
+                SDL_Texture *tex = loadTexture((folder_path + "/" + filename ).c_str());
+                if (tex)
+                {
+                    textureNames.push_back(textureName);
+                    targetMap[textureName] = tex;
+                }
+                else
+                {
+                    SDL_Log("Failed to load texture: %s", filename.c_str());
+                }
+            }
+        }
+    }
+    catch (const fs::filesystem_error &e)
+    {
+        SDL_Log("Filesystem error: %s", e.what());
+        return false;
+    }
+    return true;
+}
