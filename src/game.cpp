@@ -43,9 +43,25 @@ Game::~Game() {}
 
 bool Game::init(const char *title, char *fenInput, int args)
 {
-    if (SDL_Init(SDL_INIT_VIDEO) == 0)
+    if (SDL_Init(SDL_INIT_VIDEO | SDL_INIT_AUDIO) == 0)
     {
         return false;
+    }
+
+    if(Mix_Init(MIX_INIT_MP3 | MIX_INIT_OGG) == 0){
+        return false;
+    }
+
+    SDL_AudioSpec desired{};
+    desired.freq = 48000;
+    desired.format = SDL_AUDIO_F32;
+    desired.channels = 2;
+    
+    
+
+    if(Mix_OpenAudio(0, &desired) == 0 ){
+        SDL_Log(SDL_GetError());
+        // return false;
     }
 
     window = SDL_CreateWindow(title, WINDOW_W, WINDOW_H, SDL_WINDOW_RESIZABLE);
@@ -91,6 +107,11 @@ bool Game::init(const char *title, char *fenInput, int args)
         return false;
     }
 
+    music = Mix_LoadMUS("Move.mp3");
+    if (!music) {
+        SDL_Log("Failed to load music: %s", SDL_GetError());
+        return -1;
+    }
     isRunning = true;
     return true;
 }
@@ -201,6 +222,8 @@ void Game::handleEvent()
             {
                 std::cout << pickedUppiece.originalX << " " << pickedUppiece.originalY << std::endl;
                 board.setPieceAt(e.button.x, e.button.y, pickedUppiece.piece, CELL_SIZE);
+
+                Mix_PlayMusic(music, 1);
 
                 isPickedUp = false;
                 isPieceSelected = false;

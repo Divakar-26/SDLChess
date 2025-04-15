@@ -17,7 +17,7 @@ compile_imgui:
 	g++ -std=c++17 -Wall -g -Iimgui -Iimgui/backends -I/usr/local/include -c imgui/backends/imgui_impl_sdlrenderer3.cpp -o build/imgui_impl_sdlrenderer3.o
 
 link:
-	g++ -std=c++17 -Wall -g build/*.o -o my_application -lSDL3 -lSDL3_image -lGL
+	g++ -std=c++17 -Wall -g build/*.o -o my_application -lSDL3 -lSDL3_image -lSDL3_mixer -lGL
 
 clean:
 	rm -rf build/*.o my_application

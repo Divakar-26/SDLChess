@@ -3,6 +3,8 @@
 
 #include <SDL3/SDL.h>
 #include <SDL3_image/SDL_image.h>
+#include<SDL3_mixer/SDL_mixer.h>
+#include<SDL3/SDL_audio.h>
 #include <iostream>
 #include <unordered_map>
 #include <string>
@@ -58,6 +60,8 @@ private:
 
     Chessboard board;
     Pieces piece;
+
+    Mix_Music* music;
 };
 
 #endif
