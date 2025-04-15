@@ -27,6 +27,7 @@ public:
     void handleEvent();
     void update();
     void render();
+    void cleanup();
     bool running()
     {
         return isRunning;
@@ -38,6 +39,8 @@ public:
         const std::string &folder_path,
         std::unordered_map<std::string, SDL_Texture *> &targetMap,
         std::vector<std::string> &textureNames);
+
+    void renderPickedUPPiece();
 
 private:
     SDL_Window *window;

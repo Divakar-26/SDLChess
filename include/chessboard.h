@@ -15,6 +15,20 @@ class Chessboard{
         return board[row][col];
     }
 
+    bool hasPieceAt(int row, int col){
+        if(board[row][col] != '.'){
+            return true;
+        }
+        return false;
+    }
+
+    void clearPieceAt(int row, int col){
+        board[row][col] = '.';
+    }
+
+    void setPieceAt(float x, float y, char p, int CELL_SIZE);
+
+
     private:
         char board[8][8];
 

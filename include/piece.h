@@ -13,18 +13,16 @@ struct Piece
     int worth;
 };
 
-
 extern Piece q, k, r, n, b, p;
 extern Piece Q, K, R, N, B, P;
-
-
 
 class Pieces{
 
     public:
     void renderPieces(SDL_Renderer *renderer, Chessboard board, SDL_Texture * pieceTexture, int CELL_SIZE);
     void renderPiece(SDL_Renderer *renderer, char piece, int x, int y, SDL_Texture * pieceTexture, int CELL_SIZE);
-
+    void renderPieceAt(SDL_Renderer *renderer, char piece, int x, int y, SDL_Texture * pieceTexture, int CELL_SIZE);
+    
 
     private:
     std::unordered_map<char, Piece> pieces = {
