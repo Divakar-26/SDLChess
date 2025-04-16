@@ -61,7 +61,7 @@ private:
     Chessboard board;
     Pieces piece;
 
-    Mix_Music* music;
+    Mix_Music* placeSound;
 };
 
 #endif

@@ -1,19 +1,19 @@
 #include"piece.h"
 
 
-Piece q = {0, 0, "Black Queen"};
-Piece k = {200, 0, "Black King"};
-Piece r = {400, 0, "Black Rook"};
-Piece n = {600, 0, "Black Knight"};
-Piece b = {800, 0, "Black Bishop"};
-Piece p = {1000, 0, "Black Pawn"};
+Piece q = {0, 0, "Black Queen", 'b'};
+Piece k = {200, 0, "Black King", 'b'};
+Piece r = {400, 0, "Black Rook", 'b'};
+Piece n = {600, 0, "Black Knight", 'b'};
+Piece b = {800, 0, "Black Bishop", 'b'};
+Piece p = {1000, 0, "Black Pawn", 'b'};
 
-Piece Q = {0, 200, "White Queen"};
-Piece K = {200, 200, "White King"};
-Piece R = {400, 200, "White Rook"};
-Piece N = {600, 200, "White Knight"};
-Piece B = {800, 200, "White Bishop"};
-Piece P = {1000, 200, "White Pawn"};
+Piece Q = {0, 200, "White Queen", 'w'};
+Piece K = {200, 200, "White King", 'w'};
+Piece R = {400, 200, "White Rook", 'w'};
+Piece N = {600, 200, "White Knight", 'w'};
+Piece B = {800, 200, "White Bishop", 'w'};
+Piece P = {1000, 200, "White Pawn", 'w'};
 
 
 void Pieces::renderPieces(SDL_Renderer *renderer, Chessboard board, SDL_Texture * pieceTexture, int CELL_SIZE)

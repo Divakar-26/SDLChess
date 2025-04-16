@@ -28,7 +28,6 @@ class Chessboard{
 
     void setPieceAt(float x, float y, char p, int CELL_SIZE);
 
-
     private:
         char board[8][8];
 

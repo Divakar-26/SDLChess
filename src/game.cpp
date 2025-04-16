@@ -107,8 +107,8 @@ bool Game::init(const char *title, char *fenInput, int args)
         return false;
     }
 
-    music = Mix_LoadMUS("Move.mp3");
-    if (!music) {
+    placeSound = Mix_LoadMUS("Move.mp3");
+    if (!placeSound) {
         SDL_Log("Failed to load music: %s", SDL_GetError());
         return -1;
     }
@@ -136,7 +136,7 @@ void Game::handleEvent()
                     int x = e.button.x / CELL_SIZE;
                     int y = e.button.y / CELL_SIZE;
         
-                    if (board.hasPieceAt(y, x) && !isPickedUp)
+                    if (board.hasPieceAt(y, x) && !isPickedUp && (e.button.x >= 0 && e.button.x <= 640 && e.button.y >= 0 && e.button.y <= 640))
                     {
         
                         float mouseX, mouseY;
@@ -151,8 +151,8 @@ void Game::handleEvent()
                         pickedUppiece.piece = board.getPiecesAt(y, x);
                         std::cout << pickedUppiece.piece << std::endl;
         
-                        pickedUppiece.originalX = mouseX;
-                        pickedUppiece.originalY = mouseY;
+                        pickedUppiece.originalX = e.button.x;
+                        pickedUppiece.originalY = e.button.y;
         
                         board.clearPieceAt(y, x);
         
@@ -178,7 +178,7 @@ void Game::handleEvent()
             mousePrinting(e, renderer);
             isMouseMoved = true;
         }
-        else if (e.type == SDL_EVENT_MOUSE_BUTTON_DOWN )
+        else if (e.type == SDL_EVENT_MOUSE_BUTTON_DOWN)
         {
             mouseDown = true;
             mouseDownX = e.button.x;
@@ -188,7 +188,7 @@ void Game::handleEvent()
             int y = e.button.y / CELL_SIZE;
 
             // Handle selection and deselection logic
-            if (board.hasPieceAt(y, x))
+            if (board.hasPieceAt(y, x) && (e.button.x >= 0 && e.button.x <= 640 && e.button.y >= 0 && e.button.y <= 640))
             {
                 if (isPieceSelected && selectedX == x && selectedY == y)
                 {
@@ -216,14 +216,22 @@ void Game::handleEvent()
                 std::cout << "Deselected piece due to empty space at " << x << ", " << y << std::endl;
             }
         }
+
         else if (e.type == SDL_EVENT_MOUSE_BUTTON_UP && e.button.button == SDL_BUTTON_LEFT)
         {
-            if (isPickedUp)
+            if(isPickedUp && (e.button.x < 0 || e.button.x > 640 || e.button.y < 0 || e.button.y > 640)){
+                board.setPieceAt(pickedUppiece.originalX, pickedUppiece.originalY, pickedUppiece.piece, CELL_SIZE);
+                isPickedUp = false;
+                isPieceSelected = false;
+                mouseDown = false;
+                return;
+            }
+            else if (isPickedUp)
             {
                 std::cout << pickedUppiece.originalX << " " << pickedUppiece.originalY << std::endl;
                 board.setPieceAt(e.button.x, e.button.y, pickedUppiece.piece, CELL_SIZE);
 
-                Mix_PlayMusic(music, 1);
+                Mix_PlayMusic(placeSound, 1);
 
                 isPickedUp = false;
                 isPieceSelected = false;
@@ -267,11 +275,6 @@ void Game::update()
     }
     ImGui::End();
 
-    // if (buffer[0] != '\0')
-    // {
-    //     fen = buffer;
-    //     board.setFEN(fen);
-    // }
 
     if (current_item >= 0 && current_item < static_cast<int>(texture_of_piece.size()))
     {
@@ -284,6 +287,7 @@ void Game::update()
         SDL_GetMouseState(&mouseX, &mouseY);
         pickedUppiece.x = mouseX;
         pickedUppiece.y = mouseY;
+        std::cout<<board.getPiecesAt(selectedY, selectedX)<<std::endl;
     }
 }
 
@@ -323,7 +327,7 @@ void Game::render()
     {
         float drawX = pickedUppiece.x - pickedUppiece.offsetX;
         float drawY = pickedUppiece.y - pickedUppiece.offsetY;
-
+        
         piece.renderPieceAt(renderer, pickedUppiece.piece, drawY, drawX, pieceTexture, CELL_SIZE);
     }
 

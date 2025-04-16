@@ -11,6 +11,7 @@ struct Piece
     float texX, texY;
     std::string name;
     int worth;
+    char color;
 };
 
 extern Piece q, k, r, n, b, p;
