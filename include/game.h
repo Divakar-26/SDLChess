@@ -56,7 +56,9 @@ private:
 
     std::unordered_map<std::string, SDL_Texture *> piecesTextures;
     std::unordered_map<std::string, SDL_Texture *> boardTextures;
-    int current_item = 0;
+
+    int current_item_piece_theme = 15;
+    int current_item_board_theme = 7;
 
     Chessboard board;
     Pieces piece;

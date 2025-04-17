@@ -5,6 +5,9 @@
 std::vector<std::string> texture_of_piece;
 std::vector<std::string> texture_of_board;
 
+bool piece_texture_changed = false;
+bool board_texture_changed = false;
+
 int mX, mY;
 
 void mousePrinting(SDL_Event e, SDL_Renderer *renderer);
@@ -48,7 +51,8 @@ bool Game::init(const char *title, char *fenInput, int args)
         return false;
     }
 
-    if(Mix_Init(MIX_INIT_MP3 | MIX_INIT_OGG) == 0){
+    if (Mix_Init(MIX_INIT_MP3 | MIX_INIT_OGG) == 0)
+    {
         return false;
     }
 
@@ -56,10 +60,9 @@ bool Game::init(const char *title, char *fenInput, int args)
     desired.freq = 48000;
     desired.format = SDL_AUDIO_F32;
     desired.channels = 2;
-    
-    
 
-    if(Mix_OpenAudio(0, &desired) == 0 ){
+    if (Mix_OpenAudio(0, &desired) == 0)
+    {
         SDL_Log(SDL_GetError());
         // return false;
     }
@@ -98,8 +101,8 @@ bool Game::init(const char *title, char *fenInput, int args)
     loadTexturesFromFolder("assets/piecesTexture", piecesTextures, texture_of_piece);
     loadTexturesFromFolder("assets/boardTexture", boardTextures, texture_of_board);
 
-    pieceTexture = piecesTextures["cburnett"];
-    boardTexture = boardTextures["board"];
+    pieceTexture = piecesTextures["pixel"];
+    boardTexture = boardTextures["8_bit"];
 
     if (!boardTexture || !pieceTexture)
     {
@@ -108,7 +111,8 @@ bool Game::init(const char *title, char *fenInput, int args)
     }
 
     placeSound = Mix_LoadMUS("Move.mp3");
-    if (!placeSound) {
+    if (!placeSound)
+    {
         SDL_Log("Failed to load music: %s", SDL_GetError());
         return -1;
     }
@@ -126,38 +130,41 @@ void Game::handleEvent()
         {
             isRunning = false;
         }
-        else if(e.type == SDL_EVENT_MOUSE_MOTION && isMouseMoved && e.button.button == SDL_BUTTON_LEFT){
-            std::cout<<"i am in"<<std::endl;
-            if(mouseDown && !isPickedUp){
+        else if (e.type == SDL_EVENT_MOUSE_MOTION && isMouseMoved && e.button.button == SDL_BUTTON_LEFT)
+        {
+            std::cout << "i am in" << std::endl;
+            if (mouseDown && !isPickedUp)
+            {
                 int dx = std::abs(e.motion.x - mouseDownX);
                 int dy = std::abs(e.motion.y - mouseDownY);
 
-                if(dx > dragThreshold || dy > dragThreshold){
+                if (dx > dragThreshold || dy > dragThreshold)
+                {
                     int x = e.button.x / CELL_SIZE;
                     int y = e.button.y / CELL_SIZE;
-        
+
                     if (board.hasPieceAt(y, x) && !isPickedUp && (e.button.x >= 0 && e.button.x <= 640 && e.button.y >= 0 && e.button.y <= 640))
                     {
-        
+
                         float mouseX, mouseY;
                         SDL_GetMouseState(&mouseX, &mouseY);
-        
+
                         pickedUppiece.x = mouseX;
                         pickedUppiece.y = mouseY;
-        
+
                         pickedUppiece.offsetX = mouseX - (x * CELL_SIZE);
                         pickedUppiece.offsetY = mouseY - (y * CELL_SIZE);
-        
+
                         pickedUppiece.piece = board.getPiecesAt(y, x);
                         std::cout << pickedUppiece.piece << std::endl;
-        
+
                         pickedUppiece.originalX = e.button.x;
                         pickedUppiece.originalY = e.button.y;
-        
+
                         board.clearPieceAt(y, x);
-        
+
                         isPickedUp = true;
-        
+
                         // selection
                         isPieceSelected = true;
                         selectedX = x;
@@ -219,7 +226,8 @@ void Game::handleEvent()
 
         else if (e.type == SDL_EVENT_MOUSE_BUTTON_UP && e.button.button == SDL_BUTTON_LEFT)
         {
-            if(isPickedUp && (e.button.x < 0 || e.button.x > 640 || e.button.y < 0 || e.button.y > 640)){
+            if (isPickedUp && (e.button.x < 0 || e.button.x > 640 || e.button.y < 0 || e.button.y > 640))
+            {
                 board.setPieceAt(pickedUppiece.originalX, pickedUppiece.originalY, pickedUppiece.piece, CELL_SIZE);
                 isPickedUp = false;
                 isPieceSelected = false;
@@ -250,18 +258,38 @@ void Game::update()
 
     // UI with dropdown
     ImGui::Begin("THEMES");
-    if (ImGui::BeginCombo("Choose Theme##Combo", texture_of_piece[current_item].c_str()))
+    if (ImGui::BeginCombo("Choose Theme##Combo", texture_of_piece[current_item_piece_theme].c_str()))
     { // "##Combo" ensures a valid ID
         for (int i = 0; i < static_cast<int>(texture_of_piece.size()); ++i)
         {
-            bool is_selected = (current_item == i);
+            bool is_selected = (current_item_piece_theme == i);
             if (ImGui::Selectable(texture_of_piece[i].c_str(), is_selected))
-                current_item = i;
+                current_item_piece_theme = i;
             if (is_selected)
+            {
                 ImGui::SetItemDefaultFocus();
+                piece_texture_changed = true;
+            }
         }
         ImGui::EndCombo();
     }
+
+    if (ImGui::BeginCombo("Choose Board Theme##Combo", texture_of_board[current_item_board_theme].c_str()))
+    {
+        for (int i = 0; i < static_cast<int>(texture_of_board.size()); ++i)
+        {
+            bool is_selected = (current_item_board_theme == i);
+            if (ImGui::Selectable(texture_of_board[i].c_str(), is_selected))
+                current_item_board_theme = i;
+            if (is_selected)
+            {
+                ImGui::SetItemDefaultFocus();
+                board_texture_changed = true;
+            }
+        }
+        ImGui::EndCombo();
+    }
+
     ImGui::End();
 
     static char buffer[128] = ""; // Buffer to store the input text
@@ -275,10 +303,22 @@ void Game::update()
     }
     ImGui::End();
 
-
-    if (current_item >= 0 && current_item < static_cast<int>(texture_of_piece.size()))
+    if (current_item_piece_theme < 0 || current_item_piece_theme >= texture_of_piece.size() && !piece_texture_changed)
     {
-        pieceTexture = piecesTextures[texture_of_piece[current_item]];
+        pieceTexture = piecesTextures["pixel"];
+    }
+    else
+    {
+        pieceTexture = piecesTextures[texture_of_piece[current_item_piece_theme]];
+    }
+
+    if (current_item_board_theme < 0 || current_item_board_theme >= texture_of_board.size() && !board_texture_changed)
+    {
+        boardTexture = boardTextures["wood"];
+    }
+    else
+    {
+        boardTexture = boardTextures[texture_of_board[current_item_board_theme]];
     }
 
     if (isPickedUp)
@@ -287,7 +327,7 @@ void Game::update()
         SDL_GetMouseState(&mouseX, &mouseY);
         pickedUppiece.x = mouseX;
         pickedUppiece.y = mouseY;
-        std::cout<<board.getPiecesAt(selectedY, selectedX)<<std::endl;
+        std::cout << board.getPiecesAt(selectedY, selectedX) << std::endl;
     }
 }
 
@@ -327,7 +367,7 @@ void Game::render()
     {
         float drawX = pickedUppiece.x - pickedUppiece.offsetX;
         float drawY = pickedUppiece.y - pickedUppiece.offsetY;
-        
+
         piece.renderPieceAt(renderer, pickedUppiece.piece, drawY, drawX, pieceTexture, CELL_SIZE);
     }
 
@@ -365,6 +405,8 @@ bool Game::loadTexturesFromFolder(
             {
                 std::string filename = entry.path().filename().string();
                 std::string textureName = filename.substr(0, filename.find_last_of('.'));
+
+                std::cout << textureName << std::endl;
 
                 SDL_Texture *tex = loadTexture((folder_path + "/" + filename).c_str());
                 if (tex)

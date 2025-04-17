@@ -50,7 +50,7 @@ void Chessboard::setFEN(std::string fen)
 
 void Chessboard::renderBoard(SDL_Renderer *renderer, SDL_Texture * boardTexture)
 {
-    SDL_FRect srcRect = {0, 0, 512, 512};
+    SDL_FRect srcRect = {0, 0, 1600, 1600};
     SDL_FRect destRect = {0, 0, 640, 640};
 
     SDL_RenderTexture(renderer, boardTexture, &srcRect, &destRect);
