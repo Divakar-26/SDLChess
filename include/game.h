@@ -16,7 +16,7 @@
 
 #include "chessboard.h"
 #include "piece.h"
-
+    
 namespace fs = std::filesystem;
 
 class Game

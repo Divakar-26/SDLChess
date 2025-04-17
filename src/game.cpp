@@ -9,6 +9,8 @@ bool piece_texture_changed = false;
 bool board_texture_changed = false;
 
 int mX, mY;
+int hoveringSquareX;
+int hoveringSquareY;
 
 void mousePrinting(SDL_Event e, SDL_Renderer *renderer);
 bool isMouseMoved = false;
@@ -115,7 +117,10 @@ bool Game::init(const char *title, char *fenInput, int args)
     {
         SDL_Log("Failed to load music: %s", SDL_GetError());
         return -1;
-    }
+    }   
+
+    board.setPieceAt(0,4,'p', CELL_SIZE);
+
     isRunning = true;
     return true;
 }
@@ -133,6 +138,10 @@ void Game::handleEvent()
         else if (e.type == SDL_EVENT_MOUSE_MOTION && isMouseMoved && e.button.button == SDL_BUTTON_LEFT)
         {
             std::cout << "i am in" << std::endl;
+
+            hoveringSquareX = e.motion.x / (CELL_SIZE);
+            hoveringSquareY = e.motion.y / (CELL_SIZE);
+
             if (mouseDown && !isPickedUp)
             {
                 int dx = std::abs(e.motion.x - mouseDownX);
@@ -143,7 +152,7 @@ void Game::handleEvent()
                     int x = e.button.x / CELL_SIZE;
                     int y = e.button.y / CELL_SIZE;
 
-                    if (board.hasPieceAt(y, x) && !isPickedUp && (e.button.x >= 0 && e.button.x <= 640 && e.button.y >= 0 && e.button.y <= 640))
+                    if (board.hasPieceAt(x, y) && !isPickedUp && (e.button.x >= 0 && e.button.x <= 640 && e.button.y >= 0 && e.button.y <= 640))
                     {
 
                         float mouseX, mouseY;
@@ -155,13 +164,13 @@ void Game::handleEvent()
                         pickedUppiece.offsetX = mouseX - (x * CELL_SIZE);
                         pickedUppiece.offsetY = mouseY - (y * CELL_SIZE);
 
-                        pickedUppiece.piece = board.getPiecesAt(y, x);
+                        pickedUppiece.piece = board.getPiecesAt(x, y);
                         std::cout << pickedUppiece.piece << std::endl;
 
-                        pickedUppiece.originalX = e.button.x;
-                        pickedUppiece.originalY = e.button.y;
+                        pickedUppiece.originalX = x;
+                        pickedUppiece.originalY = y;
 
-                        board.clearPieceAt(y, x);
+                        board.clearPieceAt(x, y);
 
                         isPickedUp = true;
 
@@ -195,7 +204,7 @@ void Game::handleEvent()
             int y = e.button.y / CELL_SIZE;
 
             // Handle selection and deselection logic
-            if (board.hasPieceAt(y, x) && (e.button.x >= 0 && e.button.x <= 640 && e.button.y >= 0 && e.button.y <= 640))
+            if (board.hasPieceAt(x, y) && (e.button.x >= 0 && e.button.x <= 640 && e.button.y >= 0 && e.button.y <= 640))
             {
                 if (isPieceSelected && selectedX == x && selectedY == y)
                 {
@@ -237,7 +246,7 @@ void Game::handleEvent()
             else if (isPickedUp)
             {
                 std::cout << pickedUppiece.originalX << " " << pickedUppiece.originalY << std::endl;
-                board.setPieceAt(e.button.x, e.button.y, pickedUppiece.piece, CELL_SIZE);
+                board.setPieceAt(e.button.x / CELL_SIZE, e.button.y / CELL_SIZE, pickedUppiece.piece, CELL_SIZE);
 
                 Mix_PlayMusic(placeSound, 1);
 
@@ -327,7 +336,7 @@ void Game::update()
         SDL_GetMouseState(&mouseX, &mouseY);
         pickedUppiece.x = mouseX;
         pickedUppiece.y = mouseY;
-        std::cout << board.getPiecesAt(selectedY, selectedX) << std::endl;
+        std::cout << board.getPiecesAt(selectedX, selectedY) << std::endl;
     }
 }
 
@@ -350,26 +359,41 @@ void Game::render()
             CELL_SIZE - 2};
 
         SDL_SetRenderDrawBlendMode(renderer, SDL_BLENDMODE_BLEND);
-        SDL_SetRenderDrawColor(renderer, 255, 255, 0, 100); // Yellow with alpha
+        SDL_SetRenderDrawColor(renderer, 255, 255, 0, 100);
         SDL_RenderFillRect(renderer, &highlight);
+
+        auto move = piece.legalMoves(selectedX, selectedY, board);
+
+        for(auto it: move){
+            board.highLightSquare(it.first, it.second, CELL_SIZE, renderer);
+        }
     }
 
-    if (isMouseMoved)
-    {
-        SDL_FRect grid = {(float)(mX * CELL_SIZE), (float)(mY * CELL_SIZE), CELL_SIZE, CELL_SIZE};
-        SDL_SetRenderDrawColor(renderer, 255, 0, 0, 0);
-        SDL_RenderFillRect(renderer, &grid);
-    }
+    // if (isMouseMoved)
+    // {
+    //     SDL_FRect grid = {(float)(mX * CELL_SIZE), (float)(mY * CELL_SIZE), CELL_SIZE, CELL_SIZE};
+    //     SDL_SetRenderDrawColor(renderer, 255, 0, 0, 0);
+    //     SDL_RenderFillRect(renderer, &grid);
+    // }
+
 
     piece.renderPieces(renderer, board, pieceTexture, CELL_SIZE);
-
+    
     if (isPickedUp)
     {
         float drawX = pickedUppiece.x - pickedUppiece.offsetX;
         float drawY = pickedUppiece.y - pickedUppiece.offsetY;
-
         piece.renderPieceAt(renderer, pickedUppiece.piece, drawY, drawX, pieceTexture, CELL_SIZE);
+        
+        
+        SDL_SetRenderDrawColor(renderer, 255,255,255,100);
+        for(int i= 0; i < 4; i++){
+            
+            SDL_FRect outline = {hoveringSquareX * CELL_SIZE + i, hoveringSquareY * CELL_SIZE + i, CELL_SIZE - 2 * i, CELL_SIZE - 2 * i};
+            SDL_RenderRect(renderer, &outline);
+        }
     }
+    
 
     ImGui_ImplSDLRenderer3_RenderDrawData(ImGui::GetDrawData(), renderer);
     SDL_RenderPresent(renderer);

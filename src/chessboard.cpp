@@ -56,13 +56,17 @@ void Chessboard::renderBoard(SDL_Renderer *renderer, SDL_Texture * boardTexture)
     SDL_RenderTexture(renderer, boardTexture, &srcRect, &destRect);
 }
 
-void Chessboard::setPieceAt(float x, float y, char p, int CELL_SIZE){
-    int xIndex = static_cast<int>(x / CELL_SIZE);
-    int yIndex = static_cast<int>(y / CELL_SIZE);
+void Chessboard::setPieceAt(int x, int y, char p, int CELL_SIZE){
 
     // Optional: add bounds check to prevent crash
-    if (xIndex >= 0 && xIndex < 8 && yIndex >= 0 && yIndex < 8) {
-        board[yIndex][xIndex] = p;
-        std::cout<<xIndex<<" "<<yIndex<<std::endl;
+    if (x >= 0 && x < 8 && y >= 0 && y < 8) {
+        board[y][x] = p;
+        std::cout<<x<<" "<<y<<std::endl;
     }
+}
+
+
+void Chessboard::highLightSquare(int row, int col, int CELL_SIZE, SDL_Renderer * renderer){
+    SDL_FRect  rect = {(row * (CELL_SIZE)), (col * (CELL_SIZE)), CELL_SIZE, CELL_SIZE};
+    SDL_RenderFillRect(renderer, &rect);
 }
