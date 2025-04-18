@@ -4,6 +4,7 @@
 #include <SDL3/SDL.h>
 #include <string>
 
+
 class Chessboard
 {
 public:
@@ -35,6 +36,7 @@ public:
 
     void highLightSquare(int row, int col, int CELL_SIZE, SDL_Renderer *renderer);
 
+
     bool isOwnPiece(int row, int col, char c){
         char cp = board[col][row];
 
@@ -42,7 +44,7 @@ public:
             return false;
         }
 
-        return std::isupper(cp) == std::isupper(cp);
+        return std::isupper(cp) == std::isupper(c);
     }
     bool isEnemyPiece(int row, int col, char c){
 
@@ -52,7 +54,7 @@ public:
             return false;
         }
 
-        return std::islower(cp) == std::islower(cp);
+        return std::islower(cp) != std::islower(c);
     }
 
 
@@ -65,7 +67,9 @@ public:
         }
 
         return false;
+        
     }
+
     // utility
 
 

@@ -63,6 +63,9 @@ private:
     Chessboard board;
     Pieces piece;
 
+    bool isWhiteTurn;  // Tracks whose turn it is
+
+
     Mix_Music* placeSound;
 };
 

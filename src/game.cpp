@@ -4,6 +4,8 @@
 
 std::vector<std::string> texture_of_piece;
 std::vector<std::string> texture_of_board;
+std::vector<std::pair<int,int>> moves;
+
 
 bool piece_texture_changed = false;
 bool board_texture_changed = false;
@@ -37,6 +39,9 @@ int selectedX = -1, selectedY = -1;
 bool mouseDown = false;
 int mouseDownX = 0, mouseDownY = 0;
 const int dragThreshold = 4; // Pixels to move before it's considered a drag
+
+bool isInLegalMoves(std::vector<std::pair<int,int>> &moves, int x, int y);
+
 
 Game::Game(int W_W, int W_H)
 {
@@ -119,8 +124,6 @@ bool Game::init(const char *title, char *fenInput, int args)
         return -1;
     }   
 
-    board.setPieceAt(0,4,'p', CELL_SIZE);
-
     isRunning = true;
     return true;
 }
@@ -137,7 +140,7 @@ void Game::handleEvent()
         }
         else if (e.type == SDL_EVENT_MOUSE_MOTION && isMouseMoved && e.button.button == SDL_BUTTON_LEFT)
         {
-            std::cout << "i am in" << std::endl;
+            // std::cout << "i am in" << std::endl;
 
             hoveringSquareX = e.motion.x / (CELL_SIZE);
             hoveringSquareY = e.motion.y / (CELL_SIZE);
@@ -165,7 +168,7 @@ void Game::handleEvent()
                         pickedUppiece.offsetY = mouseY - (y * CELL_SIZE);
 
                         pickedUppiece.piece = board.getPiecesAt(x, y);
-                        std::cout << pickedUppiece.piece << std::endl;
+                        // std::cout << pickedUppiece.piece << std::endl;
 
                         pickedUppiece.originalX = x;
                         pickedUppiece.originalY = y;
@@ -178,6 +181,8 @@ void Game::handleEvent()
                         isPieceSelected = true;
                         selectedX = x;
                         selectedY = y;
+
+                        
                     }
                 }
             }
@@ -191,7 +196,6 @@ void Game::handleEvent()
                 hasMovedAfterPickup = true;
             }
 
-            mousePrinting(e, renderer);
             isMouseMoved = true;
         }
         else if (e.type == SDL_EVENT_MOUSE_BUTTON_DOWN)
@@ -203,6 +207,10 @@ void Game::handleEvent()
             int x = e.button.x / CELL_SIZE;
             int y = e.button.y / CELL_SIZE;
 
+            moves = piece.legalMoves(x, y, board);
+
+            std::cout<<x<<" ------> "<<y<<std::endl;
+
             // Handle selection and deselection logic
             if (board.hasPieceAt(x, y) && (e.button.x >= 0 && e.button.x <= 640 && e.button.y >= 0 && e.button.y <= 640))
             {
@@ -212,7 +220,7 @@ void Game::handleEvent()
                     isPieceSelected = false;
                     selectedX = -1;
                     selectedY = -1;
-                    std::cout << "Deselected piece at " << x << ", " << y << std::endl;
+                    // std::cout << "Deselected piece at " << x << ", " << y << std::endl;
                 }
                 else
                 {
@@ -220,7 +228,7 @@ void Game::handleEvent()
                     isPieceSelected = true;
                     selectedX = x;
                     selectedY = y;
-                    std::cout << "Selected piece at " << x << ", " << y << std::endl;
+                    // std::cout << "Selected piece at " << x << ", " << y << std::endl;
                 }
             }
             else
@@ -229,12 +237,15 @@ void Game::handleEvent()
                 isPieceSelected = false;
                 selectedX = -1;
                 selectedY = -1;
-                std::cout << "Deselected piece due to empty space at " << x << ", " << y << std::endl;
+                // std::cout << "Deselected piece due to empty space at " << x << ", " << y << std::endl;
             }
         }
 
         else if (e.type == SDL_EVENT_MOUSE_BUTTON_UP && e.button.button == SDL_BUTTON_LEFT)
         {
+            int x = e.button.x / CELL_SIZE;
+            int y = e.button.y / CELL_SIZE;
+
             if (isPickedUp && (e.button.x < 0 || e.button.x > 640 || e.button.y < 0 || e.button.y > 640))
             {
                 board.setPieceAt(pickedUppiece.originalX, pickedUppiece.originalY, pickedUppiece.piece, CELL_SIZE);
@@ -243,18 +254,23 @@ void Game::handleEvent()
                 mouseDown = false;
                 return;
             }
-            else if (isPickedUp)
+            else if (isPickedUp && isInLegalMoves(moves, x, y))
             {
-                std::cout << pickedUppiece.originalX << " " << pickedUppiece.originalY << std::endl;
-                board.setPieceAt(e.button.x / CELL_SIZE, e.button.y / CELL_SIZE, pickedUppiece.piece, CELL_SIZE);
-
+                board.setPieceAt(x,y, pickedUppiece.piece, CELL_SIZE);
                 Mix_PlayMusic(placeSound, 1);
-
                 isPickedUp = false;
                 isPieceSelected = false;
                 mouseDown = false;
                 return;
             }
+            else if(isPickedUp && !isInLegalMoves(moves, x, y) ){ 
+                board.setPieceAt(pickedUppiece.originalX, pickedUppiece.originalY, pickedUppiece.piece, CELL_SIZE);
+                isPickedUp = false;
+                isPieceSelected = false;
+                mouseDown = false;
+                return;
+            }
+
         }
     }
 }
@@ -303,11 +319,16 @@ void Game::update()
 
     static char buffer[128] = ""; // Buffer to store the input text
     ImGui::Begin("Load FEN");     // Start a window
+
     ImGui::InputText("FEN", buffer, sizeof(buffer));
     ImGui::SameLine();
     if (ImGui::Button("Load"))
     {
         fen = buffer;
+        board.setFEN(fen);
+    }
+    if(ImGui::Button("RESET")){
+        fen = "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1";
         board.setFEN(fen);
     }
     ImGui::End();
@@ -336,7 +357,7 @@ void Game::update()
         SDL_GetMouseState(&mouseX, &mouseY);
         pickedUppiece.x = mouseX;
         pickedUppiece.y = mouseY;
-        std::cout << board.getPiecesAt(selectedX, selectedY) << std::endl;
+        // std::cout << board.getPiecesAt(selectedX, selectedY) << std::endl;
     }
 }
 
@@ -357,28 +378,19 @@ void Game::render()
             selectedY * CELL_SIZE + 1,
             CELL_SIZE - 2,
             CELL_SIZE - 2};
-
-        SDL_SetRenderDrawBlendMode(renderer, SDL_BLENDMODE_BLEND);
-        SDL_SetRenderDrawColor(renderer, 255, 255, 0, 100);
-        SDL_RenderFillRect(renderer, &highlight);
-
-        auto move = piece.legalMoves(selectedX, selectedY, board);
-
-        for(auto it: move){
+            
+            SDL_SetRenderDrawBlendMode(renderer, SDL_BLENDMODE_BLEND);
+            SDL_SetRenderDrawColor(renderer, 255, 255, 0, 100);
+            SDL_RenderFillRect(renderer, &highlight);
+            
+        for(auto it: moves){
             board.highLightSquare(it.first, it.second, CELL_SIZE, renderer);
+            std::cout<<it.first<<"--->"<<it.second<<std::endl;
         }
     }
 
-    // if (isMouseMoved)
-    // {
-    //     SDL_FRect grid = {(float)(mX * CELL_SIZE), (float)(mY * CELL_SIZE), CELL_SIZE, CELL_SIZE};
-    //     SDL_SetRenderDrawColor(renderer, 255, 0, 0, 0);
-    //     SDL_RenderFillRect(renderer, &grid);
-    // }
-
-
-    piece.renderPieces(renderer, board, pieceTexture, CELL_SIZE);
     
+    piece.renderPieces(renderer, board, pieceTexture, CELL_SIZE);
     if (isPickedUp)
     {
         float drawX = pickedUppiece.x - pickedUppiece.offsetX;
@@ -393,20 +405,11 @@ void Game::render()
             SDL_RenderRect(renderer, &outline);
         }
     }
-    
 
     ImGui_ImplSDLRenderer3_RenderDrawData(ImGui::GetDrawData(), renderer);
     SDL_RenderPresent(renderer);
 }
 
-void mousePrinting(SDL_Event e, SDL_Renderer *renderer)
-{
-    float mouseX, mouseY;
-    SDL_GetMouseState(&mouseX, &mouseY);
-
-    mX = (int)(mouseX / CELL_SIZE);
-    mY = (int)(mouseY / CELL_SIZE);
-}
 
 SDL_Texture *Game::loadTexture(const char *path)
 {
@@ -430,7 +433,7 @@ bool Game::loadTexturesFromFolder(
                 std::string filename = entry.path().filename().string();
                 std::string textureName = filename.substr(0, filename.find_last_of('.'));
 
-                std::cout << textureName << std::endl;
+                // std::cout << textureName << std::endl;
 
                 SDL_Texture *tex = loadTexture((folder_path + "/" + filename).c_str());
                 if (tex)
@@ -472,4 +475,15 @@ void Game::cleanup()
 void Game::renderPickedUPPiece()
 {
     piece.renderPieceAt(renderer, pickedUppiece.piece, pickedUppiece.y, pickedUppiece.x, pieceTexture, CELL_SIZE);
+}
+
+bool isInLegalMoves(std::vector<std::pair<int,int>> & moves, int x, int y){
+
+    for(auto it: moves){
+        if(it.first == x && it.second == y){
+            return true;
+        }
+    }
+
+    return false;
 }

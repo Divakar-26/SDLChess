@@ -70,3 +70,4 @@ void Chessboard::highLightSquare(int row, int col, int CELL_SIZE, SDL_Renderer *
     SDL_FRect  rect = {(row * (CELL_SIZE)), (col * (CELL_SIZE)), CELL_SIZE, CELL_SIZE};
     SDL_RenderFillRect(renderer, &rect);
 }
+

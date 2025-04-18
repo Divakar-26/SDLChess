@@ -10,9 +10,9 @@
 
 
 // utils
-inline int to64(int row, int col) { return row * 8 + col; }
-inline int rowFrom64(int idx) { return idx / 8; }
-inline int colFrom64(int idx) { return idx % 8; }
+inline int to64(int row, int col) { return col * 8 + row; }
+inline int rowFrom64(int idx) { return idx % 8; }
+inline int colFrom64(int idx) { return idx / 8; }
 
 inline bool onBoard(int square)
 {
@@ -42,10 +42,11 @@ class Pieces{
     void renderPieces(SDL_Renderer *renderer, Chessboard board, SDL_Texture * pieceTexture, int CELL_SIZE);
     void renderPiece(SDL_Renderer *renderer, char piece, int x, int y, SDL_Texture * pieceTexture, int CELL_SIZE);
     void renderPieceAt(SDL_Renderer *renderer, char piece, int x, int y, SDL_Texture * pieceTexture, int CELL_SIZE);
-    std::vector<std::pair<int,int>> legalMoves(int row, int col, Chessboard & board);
-    std::vector<std::pair<int,int>> getSlidingLegalMove(int row, int col, Chessboard & board);
-
-
+    static std::vector<std::pair<int,int>> legalMoves(int row, int col, Chessboard & board);
+    static std::vector<std::pair<int,int>> getSlidingLegalMove(int row, int col, Chessboard & board);
+    static std::vector<std::pair<int,int>> getKnightLegalMove(int row, int col, Chessboard & board);
+    static std::vector<std::pair<int,int>> getPawnLegalMove(int row, int col, Chessboard & board);
+    static std::vector<std::pair<int,int>> getKingLegalMove(int row, int col, Chessboard & board);
     private:
     std::unordered_map<char, Piece> pieces = {
         {'q', q},
