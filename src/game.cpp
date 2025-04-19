@@ -1,6 +1,15 @@
 #include "game.h"
-#include<math.h>
-struct Animation {
+#include <math.h>
+
+bool isWhiteKingMoved = false;
+bool isBlackKingMoved = false;
+bool isWhiteARookMoved = false;
+bool isWhiteHRookMoved = false;
+bool isBlackARookMoved = false;
+bool isBlackHRookMoved = false;
+
+struct Animation
+{
     char piece;
     int fromX, fromY;
     float toX, toY;
@@ -12,16 +21,12 @@ Animation currentAnim;
 int animFinalTargetX = 0;
 int animFinalTargetY = 0;
 
-
 #define CELL_SIZE 80
 bool whiteTurn = true; // true = white's turn, false = black's
 
 std::vector<std::string> texture_of_piece;
 std::vector<std::string> texture_of_board;
 std::vector<std::pair<int, int>> moves;
-
-bool piece_texture_changed = false;
-bool board_texture_changed = false;
 
 int mX, mY;
 int hoveringSquareX;
@@ -49,7 +54,9 @@ bool mouseDown = false;
 int mouseDownX = 0, mouseDownY = 0;
 const int dragThreshold = 4; // Pixels to move before it's considered a drag
 
+void changeState(int x, int y, char c);
 bool isInLegalMoves(std::vector<std::pair<int, int>> &moves, int x, int y);
+bool canCastle(int x, int y, char p, Chessboard &board, std::vector<std::pair<int, int>> &moves);
 
 Game::Game(int W_W, int W_H)
 {
@@ -106,17 +113,7 @@ bool Game::init(const char *title, char *fenInput, int args)
     // FEN Parsing
     board.setFEN(fen);
 
-    loadTexturesFromFolder("assets/piecesTexture", piecesTextures, texture_of_piece);
-    loadTexturesFromFolder("assets/boardTexture", boardTextures, texture_of_board);
-
-    pieceTexture = piecesTextures["pixel"];
-    boardTexture = boardTextures["8_bit"];
-
-    if (!boardTexture || !pieceTexture)
-    {
-        SDL_Log("Failed to load texture!");
-        return false;
-    }
+    textureManager.init(pieceTexture, boardTexture, piecesTextures, boardTextures, texture_of_piece, texture_of_board, renderer);
 
     placeSound = Mix_LoadMUS("Move.mp3");
     if (!placeSound)
@@ -207,8 +204,10 @@ void Game::handleEvent()
             int y = e.button.y / CELL_SIZE;
 
             // std::cout << x << " ------> " << y << std::endl;
-            if(isPieceSelected){
-                if(isInLegalMoves(moves, x, y)){
+            if (isPieceSelected)
+            {
+                if (isInLegalMoves(moves, x, y))
+                {
 
                     currentAnim = {
                         .piece = board.getPiecesAt(selectedX, selectedY),
@@ -222,19 +221,38 @@ void Game::handleEvent()
                         .active = true,
                     };
 
+                    changeState(x, y, board.getPiecesAt(selectedX, selectedY));
 
-                    board.setPieceAt(x, y , '.', CELL_SIZE);
-                    // board.clearPieceAt(selectedX, selectedY);
+                    if(board.getPiecesAt(selectedX, selectedY) == 'K'){
+                        if(x == 6 && y==7){
+                            board.setPieceAt(5,7, 'R', CELL_SIZE);
+                            board.clearPieceAt(7,7);
+                        }
+                        else if(x == 2 && y == 7){
+                            board.setPieceAt(3,7, 'R', CELL_SIZE);
+                            board.clearPieceAt(0,7);
+                        }
+                    }
+                    if(board.getPiecesAt(selectedX, selectedY) == 'k'){
+                        if(x == 6 && y==0){
+                            board.setPieceAt(5,0, 'r', CELL_SIZE);
+                            board.clearPieceAt(7,0);
+                        }
+                        else if(x == 2 && y == 0){
+                            board.setPieceAt(3,0, 'r', CELL_SIZE);
+                            board.clearPieceAt(0,0);
+                        }
+                    }
+
+                    board.clearPieceAt(selectedX, selectedY);
 
                     animFinalTargetX = x;
                     animFinalTargetY = y;
 
-
                     whiteTurn = !whiteTurn;
 
-                    std::cout<<"Piece moved - "<<board.getPiecesAt(x,y)<<std::endl;
+                    std::cout << "Piece moved - " << board.getPiecesAt(x, y) << std::endl;
                     Mix_PlayMusic(placeSound, 1);
-
                 }
             }
             // Handle selection and deselection logic
@@ -251,7 +269,13 @@ void Game::handleEvent()
                     selectedY = -1;
                     return;
                 }
+
                 moves = piece.legalMoves(x, y, board);
+
+                if (board.getPiecesAt(x, y) == 'K' || board.getPiecesAt(x, y) == 'k')
+                {
+                    (canCastle(x, y, board.getPiecesAt(x, y), board, moves));
+                }
 
                 if (isPieceSelected && selectedX == x && selectedY == y)
                 {
@@ -292,6 +316,7 @@ void Game::handleEvent()
             }
             else if (isPickedUp && isInLegalMoves(moves, x, y))
             {
+
                 if ((whiteTurn && islower(pickedUppiece.piece)) || (!whiteTurn && isupper(pickedUppiece.piece)))
                 {
                     // Invalid move
@@ -302,11 +327,42 @@ void Game::handleEvent()
                     return;
                 }
 
+                if (pickedUppiece.piece == 'K')
+                {
+                    if (x == 6 && y == 7)
+                    {
+                        board.setPieceAt(6, 7, 'K', CELL_SIZE);
+                        board.setPieceAt(5, 7, 'R', CELL_SIZE);
+                        board.clearPieceAt(7,7);
+                    }
+                    else if(x == 2 && y == 7){
+                        board.setPieceAt(2, 7, 'K', CELL_SIZE);
+                        board.setPieceAt(3,7, 'R', CELL_SIZE);
+                        board.clearPieceAt(0,7);
+                    }
+                    
+                }
+                if(pickedUppiece.piece == 'k'){
+                    if(x == 6 && y==0){
+                        board.setPieceAt(6, 0, 'k', CELL_SIZE);
+                        board.setPieceAt(5,0, 'r', CELL_SIZE);
+                        board.clearPieceAt(7,0);
+                    }
+                    else if(x == 2 && y == 0){
+                        board.setPieceAt(2, 0, 'k', CELL_SIZE);
+                        board.setPieceAt(3,0, 'r', CELL_SIZE);
+                        board.clearPieceAt(0,0);
+                    }
+                }
+
                 board.setPieceAt(x, y, pickedUppiece.piece, CELL_SIZE);
+
                 if (isInCheck(!whiteTurn))
                 {
                     std::cout << (whiteTurn ? "Black" : "White") << " is in check!" << std::endl;
                 }
+
+                changeState(x, y, board.getPiecesAt(x, y));
 
                 whiteTurn = !whiteTurn;
 
@@ -332,7 +388,7 @@ void Game::update()
 {
     ui.update();
     // UI with dropdown
-    ui.dropDown(texture_of_piece, current_item_piece_theme, piece_texture_changed, texture_of_board, current_item_board_theme, board_texture_changed);
+    ui.dropDown(texture_of_piece, current_item_piece_theme, texture_of_board, current_item_board_theme);
     // UI of FEN LOADER
     ui.loadFEN(fen, board);
 
@@ -409,79 +465,36 @@ void Game::render()
         }
     }
 
-    if (currentAnim.active) {
+    if (currentAnim.active)
+    {
         float dx = currentAnim.toX - currentAnim.currentX;
         float dy = currentAnim.toY - currentAnim.currentY;
         float dist = sqrt(dx * dx + dy * dy);
-    
-        if (dist < currentAnim.speed) {
+
+        if (dist < currentAnim.speed)
+        {
             // Snap to final position
             currentAnim.currentX = currentAnim.toX;
             currentAnim.currentY = currentAnim.toY;
             currentAnim.active = false;
-    
+
             // Place piece at final destination
             board.setPieceAt(animFinalTargetX, animFinalTargetY, currentAnim.piece, CELL_SIZE);
             board.clearPieceAt(currentAnim.fromX, currentAnim.fromY);
-        } else {
+        }
+        else
+        {
             // Move a bit closer
             currentAnim.currentX += currentAnim.speed * (dx / dist);
             currentAnim.currentY += currentAnim.speed * (dy / dist);
         }
-    
+
         // Draw the animated piece
         piece.renderPieceAt(renderer, currentAnim.piece, currentAnim.currentY, currentAnim.currentX, pieceTexture, CELL_SIZE);
     }
 
     ImGui_ImplSDLRenderer3_RenderDrawData(ImGui::GetDrawData(), renderer);
     SDL_RenderPresent(renderer);
-}
-
-
-
-SDL_Texture *Game::loadTexture(const char *path)
-{
-    SDL_Surface *tempSurface = IMG_Load(path);
-    SDL_Texture *texture = SDL_CreateTextureFromSurface(renderer, tempSurface);
-    SDL_DestroySurface(tempSurface);
-    return texture;
-}
-
-bool Game::loadTexturesFromFolder(
-    const std::string &folder_path,
-    std::unordered_map<std::string, SDL_Texture *> &targetMap,
-    std::vector<std::string> &textureNames)
-{
-    try
-    {
-        for (const auto &entry : fs::directory_iterator(folder_path))
-        {
-            if (entry.is_regular_file())
-            {
-                std::string filename = entry.path().filename().string();
-                std::string textureName = filename.substr(0, filename.find_last_of('.'));
-
-                // std::cout << textureName << std::endl;
-
-                SDL_Texture *tex = loadTexture((folder_path + "/" + filename).c_str());
-                if (tex)
-                {
-                    textureNames.push_back(textureName);
-                    targetMap[textureName] = tex;
-                }
-                else
-                {
-                    SDL_Log("Failed to load texture: %s", filename.c_str());
-                }
-            }
-        }
-    }
-    catch (const fs::filesystem_error &e)
-    {
-        SDL_Log("Filesystem error: %s", e.what());
-        return false;
-    }
-    return true;
 }
 
 void Game::cleanup()
@@ -530,7 +543,7 @@ bool Game::isInCheck(bool isWhite)
         }
     }
 
-    std::cout << kingRow << " " << kingCol << std::endl;
+    // std::cout << kingRow << " " << kingCol << std::endl;
 
     for (int i = 0; i < 8; i++)
     {
@@ -554,4 +567,88 @@ bool Game::isInCheck(bool isWhite)
     }
 
     return false;
+}
+
+void changeState(int x, int y, char c)
+{
+    switch (c)
+    {
+    case 'k':
+        isBlackKingMoved = true;
+        break;
+    case 'K':
+        isWhiteKingMoved = true;
+        break;
+    case 'r':
+        if (x == 0)
+        {
+            isBlackARookMoved = true;
+        }
+        if (x == 7)
+        {
+            isBlackHRookMoved = true;
+        }
+        break;
+    case 'R':
+        if (x == 0)
+        {
+            isWhiteARookMoved = true;
+        }
+        if (x == 7)
+        {
+            isWhiteHRookMoved = true;
+        }
+        break;
+    default:
+        break;
+    }
+}
+
+bool canCastle(int x, int y, char p, Chessboard &board, std::vector<std::pair<int, int>> &moves)
+{
+    if (p == 'K') // White king
+    {
+        // Kingside
+        if (!isWhiteKingMoved && !isWhiteHRookMoved &&
+            board.getPiecesAt(5, 7) == '.' &&
+            board.getPiecesAt(6, 7) == '.')
+        {
+            moves.emplace_back(6, 7); // King lands on g1
+        }
+
+        // Queenside
+        if (!isWhiteKingMoved && !isWhiteARookMoved &&
+            board.getPiecesAt(1, 7) == '.' && // optional b1
+            board.getPiecesAt(2, 7) == '.' &&
+            board.getPiecesAt(3, 7) == '.')
+        {
+            moves.emplace_back(2, 7); // King lands on c1
+        }
+    }
+    else if (p == 'k') // Black king
+    {
+        // Kingside
+        if (!isBlackKingMoved && !isBlackHRookMoved &&
+            board.getPiecesAt(5, 0) == '.' &&
+            board.getPiecesAt(6, 0) == '.')
+        {
+            moves.emplace_back(6, 0); // King lands on g8
+        }
+
+        // Queenside
+        if (!isBlackKingMoved && !isBlackARookMoved &&
+            board.getPiecesAt(1, 0) == '.' && // optional b8
+            board.getPiecesAt(2, 0) == '.' &&
+            board.getPiecesAt(3, 0) == '.')
+        {
+            moves.emplace_back(2, 0); // King lands on c8
+        }
+    }
+
+    std::vector<std::pair<int, int>> enemyMoves;
+
+
+
+
+    return true;
 }

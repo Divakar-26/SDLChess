@@ -19,7 +19,7 @@ void UI::update()
     ImGui::NewFrame();
 }
 
-void UI::dropDown(std::vector<std::string> & texture_of_piece, int & current_item_piece_theme, bool & piece_texture_changed, std::vector<std::string> & texture_of_board, int & current_item_board_theme, bool &board_texture_changed)
+void UI::dropDown(std::vector<std::string> & texture_of_piece, int & current_item_piece_theme, std::vector<std::string> & texture_of_board, int & current_item_board_theme)
 {
     ImGui::Begin("THEMES");
     if (ImGui::BeginCombo("Choose Theme##Combo", texture_of_piece[current_item_piece_theme].c_str()))
@@ -32,7 +32,6 @@ void UI::dropDown(std::vector<std::string> & texture_of_piece, int & current_ite
             if (is_selected)
             {
                 ImGui::SetItemDefaultFocus();
-                piece_texture_changed = true;
             }
         }
         ImGui::EndCombo();
@@ -48,7 +47,6 @@ void UI::dropDown(std::vector<std::string> & texture_of_piece, int & current_ite
             if (is_selected)
             {
                 ImGui::SetItemDefaultFocus();
-                board_texture_changed = true;
             }
         }
         ImGui::EndCombo();

@@ -8,14 +8,12 @@
 #include <iostream>
 #include <unordered_map>
 #include <string>
-#include <filesystem>
 #include <vector>
 
 #include "chessboard.h"
 #include "piece.h"
 #include"ui.h"
-    
-namespace fs = std::filesystem;
+#include"texture.h"
 
 class Game
 {
@@ -34,7 +32,6 @@ public:
     }
 
     // HELPER FUNCTIONS
-    SDL_Texture *loadTexture(const char *path);
     bool loadTexturesFromFolder(
         const std::string &folder_path,
         std::unordered_map<std::string, SDL_Texture *> &targetMap,
@@ -63,6 +60,7 @@ private:
     Chessboard board;
     Pieces piece;
     UI ui;
+    TextureManager textureManager;
 
     bool isWhiteTurn;  // Tracks whose turn it is
 
