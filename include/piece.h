@@ -36,6 +36,8 @@ struct Piece
 extern Piece q, k, r, n, b, p;
 extern Piece Q, K, R, N, B, P;
 
+class Chessboard;
+
 class Pieces{
 
     public:
@@ -47,6 +49,8 @@ class Pieces{
     static std::vector<std::pair<int,int>> getKnightLegalMove(int row, int col, Chessboard & board);
     static std::vector<std::pair<int,int>> getPawnLegalMove(int row, int col, Chessboard & board);
     static std::vector<std::pair<int,int>> getKingLegalMove(int row, int col, Chessboard & board);
+    
+
     private:
     std::unordered_map<char, Piece> pieces = {
         {'q', q},

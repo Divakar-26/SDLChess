@@ -5,6 +5,7 @@
 #include <string>
 
 
+
 class Chessboard
 {
 public:
@@ -69,12 +70,6 @@ public:
         return false;
         
     }
-
-    // utility
-
-
-    
-
 private:
     char board[8][8];
 };

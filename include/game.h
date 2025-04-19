@@ -3,19 +3,17 @@
 
 #include <SDL3/SDL.h>
 #include <SDL3_image/SDL_image.h>
-#include<SDL3_mixer/SDL_mixer.h>
-#include<SDL3/SDL_audio.h>
+#include <SDL3_mixer/SDL_mixer.h>
+#include <SDL3/SDL_audio.h>
 #include <iostream>
 #include <unordered_map>
 #include <string>
 #include <filesystem>
 #include <vector>
-#include "imgui.h"
-#include "backends/imgui_impl_sdl3.h"
-#include "backends/imgui_impl_sdlrenderer3.h"
 
 #include "chessboard.h"
 #include "piece.h"
+#include"ui.h"
     
 namespace fs = std::filesystem;
 
@@ -44,6 +42,8 @@ public:
 
     void renderPickedUPPiece();
 
+    bool isInCheck(bool isWhite);
+
 private:
     SDL_Window *window;
     SDL_Renderer *renderer;
@@ -62,6 +62,7 @@ private:
 
     Chessboard board;
     Pieces piece;
+    UI ui;
 
     bool isWhiteTurn;  // Tracks whose turn it is
 

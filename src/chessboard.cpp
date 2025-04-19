@@ -1,5 +1,9 @@
 #include"chessboard.h"
 #include<iostream>
+#include<utility>
+#include"piece.h"
+
+
 char board[8][8] = {
     {'.', '.', '.', '.', '.', '.', '.', '.'},
     {'.', '.', '.', '.', '.', '.', '.', '.'},
@@ -10,6 +14,7 @@ char board[8][8] = {
     {'.', '.', '.', '.', '.', '.', '.', '.'},
     {'.', '.', '.', '.', '.', '.', '.', '.'},
 };
+
 
 void Chessboard::setFEN(std::string fen)
 {
@@ -67,7 +72,7 @@ void Chessboard::setPieceAt(int x, int y, char p, int CELL_SIZE){
 
 
 void Chessboard::highLightSquare(int row, int col, int CELL_SIZE, SDL_Renderer * renderer){
-    SDL_FRect  rect = {(row * (CELL_SIZE)), (col * (CELL_SIZE)), CELL_SIZE, CELL_SIZE};
+    SDL_FRect  rect = {(float)(row * (CELL_SIZE)), (float)(col * (CELL_SIZE)), (float)(CELL_SIZE), (float)(CELL_SIZE)};
     SDL_RenderFillRect(renderer, &rect);
 }
 

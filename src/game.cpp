@@ -1,11 +1,24 @@
 #include "game.h"
+#include<math.h>
+struct Animation {
+    char piece;
+    int fromX, fromY;
+    float toX, toY;
+    float currentX, currentY;
+    float speed = 10.0f;
+    bool active = false;
+};
+Animation currentAnim;
+int animFinalTargetX = 0;
+int animFinalTargetY = 0;
+
 
 #define CELL_SIZE 80
+bool whiteTurn = true; // true = white's turn, false = black's
 
 std::vector<std::string> texture_of_piece;
 std::vector<std::string> texture_of_board;
-std::vector<std::pair<int,int>> moves;
-
+std::vector<std::pair<int, int>> moves;
 
 bool piece_texture_changed = false;
 bool board_texture_changed = false;
@@ -14,13 +27,9 @@ int mX, mY;
 int hoveringSquareX;
 int hoveringSquareY;
 
-void mousePrinting(SDL_Event e, SDL_Renderer *renderer);
 bool isMouseMoved = false;
 bool hasMovedAfterPickup = false;
 
-// draggin
-
-// picking up
 struct PickedUpPiece
 {
     char piece;
@@ -40,8 +49,7 @@ bool mouseDown = false;
 int mouseDownX = 0, mouseDownY = 0;
 const int dragThreshold = 4; // Pixels to move before it's considered a drag
 
-bool isInLegalMoves(std::vector<std::pair<int,int>> &moves, int x, int y);
-
+bool isInLegalMoves(std::vector<std::pair<int, int>> &moves, int x, int y);
 
 Game::Game(int W_W, int W_H)
 {
@@ -86,14 +94,7 @@ bool Game::init(const char *title, char *fenInput, int args)
         return false;
     }
 
-    // imgui setup
-    IMGUI_CHECKVERSION();
-    ImGui::CreateContext();
-    ImGuiIO &io = ImGui::GetIO();
-    (void)io;
-    ImGui::StyleColorsDark();
-    ImGui_ImplSDL3_InitForSDLRenderer(window, renderer);
-    ImGui_ImplSDLRenderer3_Init(renderer);
+    ui.init(window, renderer);
 
     if (args == 1)
     {
@@ -122,7 +123,7 @@ bool Game::init(const char *title, char *fenInput, int args)
     {
         SDL_Log("Failed to load music: %s", SDL_GetError());
         return -1;
-    }   
+    }
 
     isRunning = true;
     return true;
@@ -181,8 +182,6 @@ void Game::handleEvent()
                         isPieceSelected = true;
                         selectedX = x;
                         selectedY = y;
-
-                        
                     }
                 }
             }
@@ -207,20 +206,59 @@ void Game::handleEvent()
             int x = e.button.x / CELL_SIZE;
             int y = e.button.y / CELL_SIZE;
 
-            moves = piece.legalMoves(x, y, board);
+            // std::cout << x << " ------> " << y << std::endl;
+            if(isPieceSelected){
+                if(isInLegalMoves(moves, x, y)){
 
-            std::cout<<x<<" ------> "<<y<<std::endl;
+                    currentAnim = {
+                        .piece = board.getPiecesAt(selectedX, selectedY),
+                        .fromX = selectedX,
+                        .fromY = selectedY,
+                        .toX = (float)x * CELL_SIZE,
+                        .toY = (float)y * CELL_SIZE,
+                        .currentX = (float)selectedX * CELL_SIZE,
+                        .currentY = (float)selectedY * CELL_SIZE,
+                        .speed = 2.3f,
+                        .active = true,
+                    };
 
+
+                    board.setPieceAt(x, y , '.', CELL_SIZE);
+                    // board.clearPieceAt(selectedX, selectedY);
+
+                    animFinalTargetX = x;
+                    animFinalTargetY = y;
+
+
+                    whiteTurn = !whiteTurn;
+
+                    std::cout<<"Piece moved - "<<board.getPiecesAt(x,y)<<std::endl;
+                    Mix_PlayMusic(placeSound, 1);
+
+                }
+            }
             // Handle selection and deselection logic
             if (board.hasPieceAt(x, y) && (e.button.x >= 0 && e.button.x <= 640 && e.button.y >= 0 && e.button.y <= 640))
             {
+
+                char piecea = board.getPiecesAt(x, y);
+                // Block pickup if it’s the wrong turn
+                if ((whiteTurn && islower(piecea)) || (!whiteTurn && isupper(piecea)))
+                {
+                    moves.clear();
+                    isPieceSelected = false;
+                    selectedX = -1;
+                    selectedY = -1;
+                    return;
+                }
+                moves = piece.legalMoves(x, y, board);
+
                 if (isPieceSelected && selectedX == x && selectedY == y)
                 {
                     // If the clicked piece is already selected, deselect it
                     isPieceSelected = false;
                     selectedX = -1;
                     selectedY = -1;
-                    // std::cout << "Deselected piece at " << x << ", " << y << std::endl;
                 }
                 else
                 {
@@ -228,7 +266,6 @@ void Game::handleEvent()
                     isPieceSelected = true;
                     selectedX = x;
                     selectedY = y;
-                    // std::cout << "Selected piece at " << x << ", " << y << std::endl;
                 }
             }
             else
@@ -237,7 +274,6 @@ void Game::handleEvent()
                 isPieceSelected = false;
                 selectedX = -1;
                 selectedY = -1;
-                // std::cout << "Deselected piece due to empty space at " << x << ", " << y << std::endl;
             }
         }
 
@@ -256,84 +292,51 @@ void Game::handleEvent()
             }
             else if (isPickedUp && isInLegalMoves(moves, x, y))
             {
-                board.setPieceAt(x,y, pickedUppiece.piece, CELL_SIZE);
+                if ((whiteTurn && islower(pickedUppiece.piece)) || (!whiteTurn && isupper(pickedUppiece.piece)))
+                {
+                    // Invalid move
+                    board.setPieceAt(pickedUppiece.originalX, pickedUppiece.originalY, pickedUppiece.piece, CELL_SIZE);
+                    isPickedUp = false;
+                    isPieceSelected = false;
+                    mouseDown = false;
+                    return;
+                }
+
+                board.setPieceAt(x, y, pickedUppiece.piece, CELL_SIZE);
+                if (isInCheck(!whiteTurn))
+                {
+                    std::cout << (whiteTurn ? "Black" : "White") << " is in check!" << std::endl;
+                }
+
+                whiteTurn = !whiteTurn;
+
                 Mix_PlayMusic(placeSound, 1);
                 isPickedUp = false;
                 isPieceSelected = false;
                 mouseDown = false;
                 return;
             }
-            else if(isPickedUp && !isInLegalMoves(moves, x, y) ){ 
+            else if (isPickedUp && !isInLegalMoves(moves, x, y))
+            {
                 board.setPieceAt(pickedUppiece.originalX, pickedUppiece.originalY, pickedUppiece.piece, CELL_SIZE);
                 isPickedUp = false;
                 isPieceSelected = false;
                 mouseDown = false;
                 return;
             }
-
         }
     }
 }
 
 void Game::update()
 {
-    ImGui_ImplSDLRenderer3_NewFrame();
-    ImGui_ImplSDL3_NewFrame();
-    ImGui::NewFrame();
-
+    ui.update();
     // UI with dropdown
-    ImGui::Begin("THEMES");
-    if (ImGui::BeginCombo("Choose Theme##Combo", texture_of_piece[current_item_piece_theme].c_str()))
-    { // "##Combo" ensures a valid ID
-        for (int i = 0; i < static_cast<int>(texture_of_piece.size()); ++i)
-        {
-            bool is_selected = (current_item_piece_theme == i);
-            if (ImGui::Selectable(texture_of_piece[i].c_str(), is_selected))
-                current_item_piece_theme = i;
-            if (is_selected)
-            {
-                ImGui::SetItemDefaultFocus();
-                piece_texture_changed = true;
-            }
-        }
-        ImGui::EndCombo();
-    }
+    ui.dropDown(texture_of_piece, current_item_piece_theme, piece_texture_changed, texture_of_board, current_item_board_theme, board_texture_changed);
+    // UI of FEN LOADER
+    ui.loadFEN(fen, board);
 
-    if (ImGui::BeginCombo("Choose Board Theme##Combo", texture_of_board[current_item_board_theme].c_str()))
-    {
-        for (int i = 0; i < static_cast<int>(texture_of_board.size()); ++i)
-        {
-            bool is_selected = (current_item_board_theme == i);
-            if (ImGui::Selectable(texture_of_board[i].c_str(), is_selected))
-                current_item_board_theme = i;
-            if (is_selected)
-            {
-                ImGui::SetItemDefaultFocus();
-                board_texture_changed = true;
-            }
-        }
-        ImGui::EndCombo();
-    }
-
-    ImGui::End();
-
-    static char buffer[128] = ""; // Buffer to store the input text
-    ImGui::Begin("Load FEN");     // Start a window
-
-    ImGui::InputText("FEN", buffer, sizeof(buffer));
-    ImGui::SameLine();
-    if (ImGui::Button("Load"))
-    {
-        fen = buffer;
-        board.setFEN(fen);
-    }
-    if(ImGui::Button("RESET")){
-        fen = "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1";
-        board.setFEN(fen);
-    }
-    ImGui::End();
-
-    if (current_item_piece_theme < 0 || current_item_piece_theme >= texture_of_piece.size() && !piece_texture_changed)
+    if (current_item_piece_theme < 0 || current_item_piece_theme >= static_cast<int>(texture_of_piece.size()))
     {
         pieceTexture = piecesTextures["pixel"];
     }
@@ -342,7 +345,7 @@ void Game::update()
         pieceTexture = piecesTextures[texture_of_piece[current_item_piece_theme]];
     }
 
-    if (current_item_board_theme < 0 || current_item_board_theme >= texture_of_board.size() && !board_texture_changed)
+    if (current_item_board_theme < 0 || current_item_board_theme >= static_cast<int>(texture_of_board.size()))
     {
         boardTexture = boardTextures["wood"];
     }
@@ -374,41 +377,66 @@ void Game::render()
     if (isPieceSelected)
     {
         SDL_FRect highlight = {
-            selectedX * CELL_SIZE + 1,
-            selectedY * CELL_SIZE + 1,
-            CELL_SIZE - 2,
-            CELL_SIZE - 2};
-            
-            SDL_SetRenderDrawBlendMode(renderer, SDL_BLENDMODE_BLEND);
-            SDL_SetRenderDrawColor(renderer, 255, 255, 0, 100);
-            SDL_RenderFillRect(renderer, &highlight);
-            
-        for(auto it: moves){
+            (float)(selectedX * CELL_SIZE + 1),
+            (float)(selectedY * CELL_SIZE + 1),
+            (float)(CELL_SIZE - 2),
+            (float)(CELL_SIZE - 2)};
+
+        SDL_SetRenderDrawBlendMode(renderer, SDL_BLENDMODE_BLEND);
+        SDL_SetRenderDrawColor(renderer, 255, 255, 0, 100);
+        SDL_RenderFillRect(renderer, &highlight);
+
+        for (auto it : moves)
+        {
             board.highLightSquare(it.first, it.second, CELL_SIZE, renderer);
-            std::cout<<it.first<<"--->"<<it.second<<std::endl;
+            std::cout << it.first << "--->" << it.second << std::endl;
         }
     }
 
-    
     piece.renderPieces(renderer, board, pieceTexture, CELL_SIZE);
     if (isPickedUp)
     {
         float drawX = pickedUppiece.x - pickedUppiece.offsetX;
         float drawY = pickedUppiece.y - pickedUppiece.offsetY;
         piece.renderPieceAt(renderer, pickedUppiece.piece, drawY, drawX, pieceTexture, CELL_SIZE);
-        
-        
-        SDL_SetRenderDrawColor(renderer, 255,255,255,100);
-        for(int i= 0; i < 4; i++){
-            
-            SDL_FRect outline = {hoveringSquareX * CELL_SIZE + i, hoveringSquareY * CELL_SIZE + i, CELL_SIZE - 2 * i, CELL_SIZE - 2 * i};
+
+        SDL_SetRenderDrawColor(renderer, 255, 255, 255, 100);
+        for (int i = 0; i < 4; i++)
+        {
+
+            SDL_FRect outline = {(float)(hoveringSquareX * CELL_SIZE + i), (float)(hoveringSquareY * CELL_SIZE + i), (float)(CELL_SIZE - 2 * i), (float)(CELL_SIZE - 2 * i)};
             SDL_RenderRect(renderer, &outline);
         }
+    }
+
+    if (currentAnim.active) {
+        float dx = currentAnim.toX - currentAnim.currentX;
+        float dy = currentAnim.toY - currentAnim.currentY;
+        float dist = sqrt(dx * dx + dy * dy);
+    
+        if (dist < currentAnim.speed) {
+            // Snap to final position
+            currentAnim.currentX = currentAnim.toX;
+            currentAnim.currentY = currentAnim.toY;
+            currentAnim.active = false;
+    
+            // Place piece at final destination
+            board.setPieceAt(animFinalTargetX, animFinalTargetY, currentAnim.piece, CELL_SIZE);
+            board.clearPieceAt(currentAnim.fromX, currentAnim.fromY);
+        } else {
+            // Move a bit closer
+            currentAnim.currentX += currentAnim.speed * (dx / dist);
+            currentAnim.currentY += currentAnim.speed * (dy / dist);
+        }
+    
+        // Draw the animated piece
+        piece.renderPieceAt(renderer, currentAnim.piece, currentAnim.currentY, currentAnim.currentX, pieceTexture, CELL_SIZE);
     }
 
     ImGui_ImplSDLRenderer3_RenderDrawData(ImGui::GetDrawData(), renderer);
     SDL_RenderPresent(renderer);
 }
+
 
 
 SDL_Texture *Game::loadTexture(const char *path)
@@ -472,16 +500,56 @@ void Game::cleanup()
     SDL_Quit();
 }
 
-void Game::renderPickedUPPiece()
+bool isInLegalMoves(std::vector<std::pair<int, int>> &moves, int x, int y)
 {
-    piece.renderPieceAt(renderer, pickedUppiece.piece, pickedUppiece.y, pickedUppiece.x, pieceTexture, CELL_SIZE);
+
+    for (auto it : moves)
+    {
+        if (it.first == x && it.second == y)
+        {
+            return true;
+        }
+    }
+    return false;
 }
 
-bool isInLegalMoves(std::vector<std::pair<int,int>> & moves, int x, int y){
+bool Game::isInCheck(bool isWhite)
+{
+    int kingRow = -1;
+    int kingCol = -1;
+    char kingChar = isWhite ? 'K' : 'k';
+    for (int i = 0; i < 8; i++)
+    {
+        for (int j = 0; j < 8; j++)
+        {
+            if (board.getPiecesAt(j, i) == kingChar)
+            {
+                kingRow = j;
+                kingCol = i;
+            }
+        }
+    }
 
-    for(auto it: moves){
-        if(it.first == x && it.second == y){
-            return true;
+    std::cout << kingRow << " " << kingCol << std::endl;
+
+    for (int i = 0; i < 8; i++)
+    {
+        for (int j = 0; j < 8; j++)
+        {
+
+            char pieceChar = board.getPiecesAt(j, i);
+
+            if (pieceChar == '.' || (isWhite && isupper(pieceChar)) || (!isWhite && islower(pieceChar)))
+            {
+                continue;
+            }
+
+            auto pieceMoves = piece.legalMoves(j, i, board);
+
+            if (isInLegalMoves(pieceMoves, kingRow, kingCol))
+            {
+                return true;
+            }
         }
     }
 
