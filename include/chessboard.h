@@ -9,6 +9,7 @@
 class Chessboard
 {
 public:
+
     void setFEN(std::string fen);
     std::string getFEN();
 

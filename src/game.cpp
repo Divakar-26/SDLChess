@@ -8,6 +8,10 @@ bool isWhiteHRookMoved = false;
 bool isBlackARookMoved = false;
 bool isBlackHRookMoved = false;
 
+int enPassantTarget = -1; // -1 means no en passant target, otherwise store as 0-63 index
+int enPassantPawnX = -1;  // Row of the pawn that can be captured en passant
+int enPassantPawnY = -1;  // Column of the pawn that can be captured en passant
+
 struct Animation
 {
     char piece;
@@ -56,7 +60,6 @@ const int dragThreshold = 4; // Pixels to move before it's considered a drag
 
 void changeState(int x, int y, char c);
 bool isInLegalMoves(std::vector<std::pair<int, int>> &moves, int x, int y);
-bool canCastle(int x, int y, char p, Chessboard &board, std::vector<std::pair<int, int>> &moves);
 
 Game::Game(int W_W, int W_H)
 {
@@ -153,9 +156,10 @@ void Game::handleEvent()
                     int x = e.button.x / CELL_SIZE;
                     int y = e.button.y / CELL_SIZE;
 
+                    std::cout<<"HELLO"<<std::endl;
+
                     if (board.hasPieceAt(x, y) && !isPickedUp && (e.button.x >= 0 && e.button.x <= 640 && e.button.y >= 0 && e.button.y <= 640))
                     {
-
                         float mouseX, mouseY;
                         SDL_GetMouseState(&mouseX, &mouseY);
 
@@ -209,6 +213,21 @@ void Game::handleEvent()
                 if (isInLegalMoves(moves, x, y))
                 {
 
+                    char movingPiece = board.getPiecesAt(selectedX, selectedY);
+
+                    if ((movingPiece == 'p' || movingPiece == 'P') && abs(selectedY - y) == 2)
+                    {
+                        // Set en passant target to the square behind the pawn (in x coordinate)
+                        enPassantTarget = to64(selectedX, (selectedY + y) / 2);
+                        enPassantPawnX = x; // store column
+                        enPassantPawnY = y; // store row
+                        std::cout << "En passant at " << x << " " << y << std::endl;
+                    }
+                    else
+                    {
+                        enPassantTarget = -1;
+                    }
+
                     currentAnim = {
                         .piece = board.getPiecesAt(selectedX, selectedY),
                         .fromX = selectedX,
@@ -223,29 +242,35 @@ void Game::handleEvent()
 
                     changeState(x, y, board.getPiecesAt(selectedX, selectedY));
 
-                    if(board.getPiecesAt(selectedX, selectedY) == 'K'){
-                        if(x == 6 && y==7){
-                            board.setPieceAt(5,7, 'R', CELL_SIZE);
-                            board.clearPieceAt(7,7);
+                    if (board.getPiecesAt(selectedX, selectedY) == 'K')
+                    {
+                        if (x == 6 && y == 7)
+                        {
+                            board.setPieceAt(5, 7, 'R', CELL_SIZE);
+                            board.clearPieceAt(7, 7);
                         }
-                        else if(x == 2 && y == 7){
-                            board.setPieceAt(3,7, 'R', CELL_SIZE);
-                            board.clearPieceAt(0,7);
+                        else if (x == 2 && y == 7)
+                        {
+                            board.setPieceAt(3, 7, 'R', CELL_SIZE);
+                            board.clearPieceAt(0, 7);
                         }
                     }
-                    if(board.getPiecesAt(selectedX, selectedY) == 'k'){
-                        if(x == 6 && y==0){
-                            board.setPieceAt(5,0, 'r', CELL_SIZE);
-                            board.clearPieceAt(7,0);
+                    if (board.getPiecesAt(selectedX, selectedY) == 'k')
+                    {
+                        if (x == 6 && y == 0)
+                        {
+                            board.setPieceAt(5, 0, 'r', CELL_SIZE);
+                            board.clearPieceAt(7, 0);
                         }
-                        else if(x == 2 && y == 0){
-                            board.setPieceAt(3,0, 'r', CELL_SIZE);
-                            board.clearPieceAt(0,0);
+                        else if (x == 2 && y == 0)
+                        {
+                            board.setPieceAt(3, 0, 'r', CELL_SIZE);
+                            board.clearPieceAt(0, 0);
                         }
                     }
 
+                    board.clearPieceAt(x, y);
                     board.clearPieceAt(selectedX, selectedY);
-
                     animFinalTargetX = x;
                     animFinalTargetY = y;
 
@@ -270,7 +295,16 @@ void Game::handleEvent()
                     return;
                 }
 
-                moves = piece.legalMoves(x, y, board);
+                if (board.getPiecesAt(x, y) == 'p' || board.getPiecesAt(x, y) == 'P')
+                {
+                    moves = getPawnMovesWithEnPassant(x, y, board);
+                }
+                else
+                {
+                    moves = piece.legalMoves(x, y, board);
+                }
+
+                moves = filtermoves(moves, x, y, board.getPiecesAt(x, y));
 
                 if (board.getPiecesAt(x, y) == 'K' || board.getPiecesAt(x, y) == 'k')
                 {
@@ -333,31 +367,34 @@ void Game::handleEvent()
                     {
                         board.setPieceAt(6, 7, 'K', CELL_SIZE);
                         board.setPieceAt(5, 7, 'R', CELL_SIZE);
-                        board.clearPieceAt(7,7);
+                        board.clearPieceAt(7, 7);
                     }
-                    else if(x == 2 && y == 7){
+                    else if (x == 2 && y == 7)
+                    {
                         board.setPieceAt(2, 7, 'K', CELL_SIZE);
-                        board.setPieceAt(3,7, 'R', CELL_SIZE);
-                        board.clearPieceAt(0,7);
+                        board.setPieceAt(3, 7, 'R', CELL_SIZE);
+                        board.clearPieceAt(0, 7);
                     }
-                    
                 }
-                if(pickedUppiece.piece == 'k'){
-                    if(x == 6 && y==0){
+                if (pickedUppiece.piece == 'k')
+                {
+                    if (x == 6 && y == 0)
+                    {
                         board.setPieceAt(6, 0, 'k', CELL_SIZE);
-                        board.setPieceAt(5,0, 'r', CELL_SIZE);
-                        board.clearPieceAt(7,0);
+                        board.setPieceAt(5, 0, 'r', CELL_SIZE);
+                        board.clearPieceAt(7, 0);
                     }
-                    else if(x == 2 && y == 0){
+                    else if (x == 2 && y == 0)
+                    {
                         board.setPieceAt(2, 0, 'k', CELL_SIZE);
-                        board.setPieceAt(3,0, 'r', CELL_SIZE);
-                        board.clearPieceAt(0,0);
+                        board.setPieceAt(3, 0, 'r', CELL_SIZE);
+                        board.clearPieceAt(0, 0);
                     }
                 }
 
                 board.setPieceAt(x, y, pickedUppiece.piece, CELL_SIZE);
 
-                if (isInCheck(!whiteTurn))
+                if (isInCheck(!whiteTurn, board))
                 {
                     std::cout << (whiteTurn ? "Black" : "White") << " is in check!" << std::endl;
                 }
@@ -442,10 +479,10 @@ void Game::render()
         SDL_SetRenderDrawColor(renderer, 255, 255, 0, 100);
         SDL_RenderFillRect(renderer, &highlight);
 
-        for (auto it : moves)
+        for (const auto &[x, y] : moves)
         {
-            board.highLightSquare(it.first, it.second, CELL_SIZE, renderer);
-            std::cout << it.first << "--->" << it.second << std::endl;
+            board.highLightSquare(x, y, CELL_SIZE, renderer);
+            std::cout << x << "--->" << y << std::endl;
         }
     }
 
@@ -478,6 +515,29 @@ void Game::render()
             currentAnim.currentY = currentAnim.toY;
             currentAnim.active = false;
 
+            // Check for en passant capture
+            if ((currentAnim.piece == 'P' || currentAnim.piece == 'p') &&
+                currentAnim.fromX != animFinalTargetX &&                      // Diagonal move
+                board.getPiecesAt(animFinalTargetX, animFinalTargetY) == '.') // Landing on empty square
+            {
+                // Verify this is an en passant capture
+
+                std::cout << xFrom64(enPassantTarget) << " -> " << currentAnim.fromY << " -> " << animFinalTargetX << std::endl;
+                int capturedPawnX = animFinalTargetX;
+                int capturedPawnY = currentAnim.fromY;
+                board.clearPieceAt(capturedPawnX, capturedPawnY);
+
+                // if (enPassantTarget != -1 &&
+                //     animFinalTargetX == xFrom64(enPassantTarget) &&
+                //     ((currentAnim.piece == 'P' && currentAnim.fromY == 3 && animFinalTargetY == 2) ||  // White capturing
+                //     (currentAnim.piece == 'p' && currentAnim.fromY == 4 && animFinalTargetY == 5)))    // Black capturing
+                //     {
+                //         // Remove the captured pawn (same file as destination, original rank)
+                //     std::cout<<"en paddant"<<std::endl;
+                //     std::cout << "En passant captured pawn at " << capturedPawnX << "," << capturedPawnY << std::endl;
+                // }
+            }
+
             // Place piece at final destination
             board.setPieceAt(animFinalTargetX, animFinalTargetY, currentAnim.piece, CELL_SIZE);
             board.clearPieceAt(currentAnim.fromX, currentAnim.fromY);
@@ -504,10 +564,18 @@ void Game::cleanup()
     for (auto &[_, tex] : boardTextures)
         SDL_DestroyTexture(tex);
 
+    if (placeSound)
+    {
+        Mix_FreeMusic(placeSound);
+        placeSound = nullptr;
+    }
+
     ImGui_ImplSDLRenderer3_Shutdown();
     ImGui_ImplSDL3_Shutdown();
     ImGui::DestroyContext();
 
+    Mix_CloseAudio();
+    Mix_Quit();
     SDL_DestroyRenderer(renderer);
     SDL_DestroyWindow(window);
     SDL_Quit();
@@ -526,7 +594,7 @@ bool isInLegalMoves(std::vector<std::pair<int, int>> &moves, int x, int y)
     return false;
 }
 
-bool Game::isInCheck(bool isWhite)
+bool Game::isInCheck(bool isWhite, Chessboard &customBoard)
 {
     int kingRow = -1;
     int kingCol = -1;
@@ -535,22 +603,20 @@ bool Game::isInCheck(bool isWhite)
     {
         for (int j = 0; j < 8; j++)
         {
-            if (board.getPiecesAt(j, i) == kingChar)
+            if (customBoard.getPiecesAt(j, i) == kingChar)
             {
                 kingRow = j;
                 kingCol = i;
             }
         }
     }
-
     // std::cout << kingRow << " " << kingCol << std::endl;
-
     for (int i = 0; i < 8; i++)
     {
         for (int j = 0; j < 8; j++)
         {
 
-            char pieceChar = board.getPiecesAt(j, i);
+            char pieceChar = customBoard.getPiecesAt(j, i);
 
             if (pieceChar == '.' || (isWhite && isupper(pieceChar)) || (!isWhite && islower(pieceChar)))
             {
@@ -604,8 +670,13 @@ void changeState(int x, int y, char c)
     }
 }
 
-bool canCastle(int x, int y, char p, Chessboard &board, std::vector<std::pair<int, int>> &moves)
+bool Game::canCastle(int x, int y, char p, Chessboard &board, std::vector<std::pair<int, int>> &moves)
 {
+    if (isInCheck(whiteTurn, board))
+    {
+        return false;
+    }
+
     if (p == 'K') // White king
     {
         // Kingside
@@ -646,9 +717,288 @@ bool canCastle(int x, int y, char p, Chessboard &board, std::vector<std::pair<in
     }
 
     std::vector<std::pair<int, int>> enemyMoves;
-
-
-
-
     return true;
+}
+
+std::vector<std::pair<int, int>> Game::filtermoves(
+    std::vector<std::pair<int, int>> &rawMoves,
+    int fromX, int fromY, char movingPiece)
+{
+    std::vector<std::pair<int, int>> filteredMoves;
+    bool isWhite = isupper(movingPiece);
+    char kingChar = isWhite ? 'K' : 'k';
+
+    // Find current king position (before move)
+    int kingX = -1, kingY = -1;
+    for (int y = 0; y < 8 && kingX == -1; y++)
+    {
+        for (int x = 0; x < 8 && kingX == -1; x++)
+        {
+            if (board.getPiecesAt(x, y) == kingChar)
+            {
+                kingX = x;
+                kingY = y;
+            }
+        }
+    }
+
+    // Check if we're currently in check
+    bool inCheck = isInCheck(isWhite, board);
+
+    // Find all checking pieces if in check
+    std::vector<std::pair<int, int>> checkingPieces;
+    if (inCheck)
+    {
+        for (int y = 0; y < 8; y++)
+        {
+            for (int x = 0; x < 8; x++)
+            {
+                char attacker = board.getPiecesAt(x, y);
+                if (attacker != '.' &&
+                    ((isWhite && islower(attacker)) || (!isWhite && isupper(attacker))))
+                {
+                    auto attackerMoves = piece.legalMoves(x, y, board);
+                    for (auto [ax, ay] : attackerMoves)
+                    {
+                        if (ax == kingX && ay == kingY)
+                        {
+                            checkingPieces.emplace_back(x, y);
+                            break;
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    // Handle special case when in check
+    if (inCheck)
+    {
+        // In case of double check, only king moves are allowed
+        if (checkingPieces.size() > 1)
+        {
+            if (movingPiece != kingChar)
+            {
+                return {};
+            }
+        }
+
+        for (auto [toX, toY] : rawMoves)
+        {
+            Chessboard tempBoard = board;
+            tempBoard.clearPieceAt(fromX, fromY);
+            tempBoard.setPieceAt(toX, toY, movingPiece, CELL_SIZE);
+
+            // For king moves, just check if new position is safe
+            if (movingPiece == kingChar)
+            {
+                bool safe = true;
+                for (int y = 0; y < 8 && safe; y++)
+                {
+                    for (int x = 0; x < 8 && safe; x++)
+                    {
+                        char attacker = tempBoard.getPiecesAt(x, y);
+                        if (attacker != '.' &&
+                            ((isWhite && islower(attacker)) || (!isWhite && isupper(attacker))))
+                        {
+                            auto attackerMoves = piece.legalMoves(x, y, tempBoard);
+                            for (auto [ax, ay] : attackerMoves)
+                            {
+                                if (ax == toX && ay == toY)
+                                {
+                                    safe = false;
+                                    break;
+                                }
+                            }
+                        }
+                    }
+                }
+                if (safe)
+                {
+                    filteredMoves.push_back({toX, toY});
+                }
+            }
+            else
+            {
+                // For non-king pieces, must either:
+                // 1. Capture the checking piece, or
+                // 2. Block the check
+                bool validMove = false;
+                for (auto [cx, cy] : checkingPieces)
+                {
+                    // Capture the attacker
+                    if (toX == cx && toY == cy)
+                    {
+                        validMove = true;
+                        break;
+                    }
+
+                    // Block the attack
+                    if (isCheckBlockable(kingX, kingY, cx, cy, board.getPiecesAt(cx, cy)))
+                    {
+                        int dx = (kingX > cx) ? 1 : (kingX < cx) ? -1
+                                                                 : 0;
+                        int dy = (kingY > cy) ? 1 : (kingY < cy) ? -1
+                                                                 : 0;
+
+                        int x = cx + dx;
+                        int y = cy + dy;
+                        while (x != kingX || y != kingY)
+                        {
+                            if (toX == x && toY == y)
+                            {
+                                validMove = true;
+                                break;
+                            }
+                            x += dx;
+                            y += dy;
+                        }
+                        if (validMove)
+                            break;
+                    }
+                }
+
+                if (validMove)
+                {
+                    // Verify this move doesn't expose king to new threats
+                    bool kingStillSafe = true;
+                    for (int y = 0; y < 8 && kingStillSafe; y++)
+                    {
+                        for (int x = 0; x < 8 && kingStillSafe; x++)
+                        {
+                            char attacker = tempBoard.getPiecesAt(x, y);
+                            if (attacker != '.' &&
+                                ((isWhite && islower(attacker)) || (!isWhite && isupper(attacker))))
+                            {
+                                auto attackerMoves = piece.legalMoves(x, y, tempBoard);
+                                for (auto [ax, ay] : attackerMoves)
+                                {
+                                    if (ax == kingX && ay == kingY)
+                                    {
+                                        kingStillSafe = false;
+                                        break;
+                                    }
+                                }
+                            }
+                        }
+                    }
+                    if (kingStillSafe)
+                    {
+                        filteredMoves.push_back({toX, toY});
+                    }
+                }
+            }
+        }
+
+        return filteredMoves;
+    }
+
+    // Normal move filtering when not in check
+    for (auto [toX, toY] : rawMoves)
+    {
+        Chessboard tempBoard = board;
+        tempBoard.clearPieceAt(fromX, fromY);
+        tempBoard.setPieceAt(toX, toY, movingPiece, CELL_SIZE);
+
+        // Find the king's new position (might be same or different if moving king)
+        int newKingX = (movingPiece == kingChar) ? toX : kingX;
+        int newKingY = (movingPiece == kingChar) ? toY : kingY;
+
+        // Check if king is under attack after this move
+        bool kingInCheck = false;
+        for (int y = 0; y < 8 && !kingInCheck; y++)
+        {
+            for (int x = 0; x < 8 && !kingInCheck; x++)
+            {
+                char attacker = tempBoard.getPiecesAt(x, y);
+                if (attacker != '.' &&
+                    ((isWhite && islower(attacker)) || (!isWhite && isupper(attacker))))
+                {
+                    auto attackerMoves = piece.legalMoves(x, y, tempBoard);
+                    for (auto [ax, ay] : attackerMoves)
+                    {
+                        if (ax == newKingX && ay == newKingY)
+                        {
+                            kingInCheck = true;
+                            break;
+                        }
+                    }
+                }
+            }
+        }
+
+        if (!kingInCheck)
+        {
+            filteredMoves.push_back({toX, toY});
+        }
+    }
+
+    return filteredMoves;
+}
+
+bool Game::isCheckBlockable(int kingX, int kingY, int checkerX, int checkerY, char checkerPiece)
+{
+    // Only sliding pieces can be blocked
+    if (tolower(checkerPiece) != 'q' &&
+        tolower(checkerPiece) != 'r' &&
+        tolower(checkerPiece) != 'b')
+    {
+        return false;
+    }
+
+    // Get path between checker and king
+    std::vector<std::pair<int, int>> path;
+    int dx = (kingX > checkerX) ? 1 : (kingX < checkerX) ? -1
+                                                         : 0;
+    int dy = (kingY > checkerY) ? 1 : (kingY < checkerY) ? -1
+                                                         : 0;
+
+    int x = checkerX + dx;
+    int y = checkerY + dy;
+    while (x != kingX || y != kingY)
+    {
+        path.emplace_back(x, y);
+        x += dx;
+        y += dy;
+    }
+
+    return !path.empty();
+}
+
+std::vector<std::pair<int, int>> Game::getPawnMovesWithEnPassant(int x, int y, Chessboard &board)
+{
+    auto moves = piece.legalMoves(x, y, board);
+    char c = board.getPiecesAt(x, y);
+    bool isWhite = isupper(c);
+
+    // For white pawns (moving up, decreasing y)
+    if (isWhite && y == 3)
+    { // 4th rank (0-indexed)
+        // Left en passant (x-1)
+        if (x > 0 && enPassantTarget == to64(x - 1, 2))
+        {
+            moves.emplace_back(x - 1, 2);
+        }
+        // Right en passant (x+1)
+        if (x < 7 && enPassantTarget == to64(x + 1, 2))
+        {
+            moves.emplace_back(x + 1, 2);
+        }
+    }
+    // For black pawns (moving down, increasing y)
+    else if (!isWhite && y == 4)
+    { // 5th rank (0-indexed)
+        // Left en passant (x-1)
+        if (x > 0 && enPassantTarget == to64(x - 1, 5))
+        {
+            moves.emplace_back(x - 1, 5);
+        }
+        // Right en passant (x+1)
+        if (x < 7 && enPassantTarget == to64(x + 1, 5))
+        {
+            moves.emplace_back(x + 1, 5);
+        }
+    }
+
+    return moves;
 }

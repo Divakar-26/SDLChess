@@ -39,8 +39,24 @@ public:
 
     void renderPickedUPPiece();
 
-    bool isInCheck(bool isWhite);
+    bool isInCheck(bool isWhite, Chessboard & customBoard);
+    std::vector<std::pair<int, int>> filtermoves(std::vector<std::pair<int, int>>& rawMoves, int fromX, int fromY, char piece);
+    bool canCastle(int x, int y, char p, Chessboard &board, std::vector<std::pair<int, int>> &moves);
+    bool isCheckBlockable(int kingX, int kingY, int checkerX, int checkerY, char checkerPiece);
 
+    std::vector<std::pair<int, int>> getPawnMovesWithEnPassant(int row, int col, Chessboard &board);
+
+    int to64(int x, int y) {  // x is column, y is row
+        return y * 8 + x;
+    }
+    
+    int xFrom64(int index) {  // returns column
+        return index % 8;
+    }
+    
+    int yFrom64(int index) {  // returns row
+        return index / 8;
+    }
 private:
     SDL_Window *window;
     SDL_Renderer *renderer;

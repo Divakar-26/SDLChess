@@ -49,7 +49,7 @@ void Pieces::renderPieces(SDL_Renderer *renderer, Chessboard board, SDL_Texture 
 void Pieces::renderPiece(SDL_Renderer *renderer, char piece, int x, int y, SDL_Texture *pieceTexture, int CELL_SIZE)
 {
     SDL_FRect srcRect = {pieces[piece].texX, pieces[piece].texY, 200, 200};
-    SDL_FRect destRect = {(float)(y * CELL_SIZE), (float)(x * CELL_SIZE), (float)CELL_SIZE, (float)CELL_SIZE};
+    SDL_FRect destRect = {(float)(y * CELL_SIZE + 0), (float)(x * CELL_SIZE + 0), (float)CELL_SIZE, (float)CELL_SIZE};
     SDL_RenderTexture(renderer, pieceTexture, &srcRect, &destRect);
 }
 
